@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+         xmlns:xhtml="http://www.w3.org/1999/xhtml"
+         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Página Principal -->
+  <url>
+    <loc>https://nmcabogada.com/</loc>
+    <lastmod>2026-05-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="es-CO" href="https://nmcabogada.com/"/>
+    <image:loc>https://nmcabogada.com/img/logo_natalia-removebg-preview.png</image:loc>
+  </url>
+  
+  <!-- Página de Privacidad -->
+  <url>
+    <loc>https://nmcabogada.com/privacidad.html</loc>
+    <lastmod>2026-05-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="es-CO" href="https://nmcabogada.com/privacidad.html"/>
+  </url>
+  
+</urlset>

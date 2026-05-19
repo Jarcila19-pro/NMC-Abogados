@@ -1,0 +1,36 @@
+# Robots.txt para N.M.C & Abogados - Natalia Márquez Ceballos
+# https://nmcabogada.com
+
+User-agent: *
+Allow: /
+
+# Archivos disallowed
+Disallow: /css/
+Disallow: /js/
+Disallow: /img/
+
+# Sitemap
+Sitemap: https://nmcabogada.com/sitemap.xml
+
+# Reglas específicas para crawlers importantes
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Googlebot-Image
+Allow: /img/
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: DuckDuckBot
+Allow: /
+Crawl-delay: 1
+
+# Homepage
+Allow: /$
+
+# Preferir versión en español
+User-agent: *
+Sitemap: https://nmcabogada.com/sitemap.xml
