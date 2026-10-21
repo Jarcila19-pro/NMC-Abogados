@@ -21,7 +21,7 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Política de Datos & Términos | N.M.C & Abogados" />
     <meta name="twitter:description" content="Política de tratamiento de datos personales, términos y condiciones y manual de publicidad." />
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500&family=Tenor+Sans&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@400;500&family=Tenor+Sans&display=swap" rel="stylesheet"/>
    <link rel="stylesheet" href="css/privacidad.css" />
   </head>
   <body>
@@ -48,7 +48,7 @@
       </ul>
       <div class="nav-right">
         <a href="https://wa.me/573146153979" class="nav-cta" target="_blank" rel="noopener">Agendar Cita</a>
-        <button class="hamburger" aria-label="Menú">
+        <button class="hamburger" aria-label="Menú" aria-expanded="false" aria-controls="mobile-menu">
           <span></span>
           <span></span>
           <span></span>
@@ -57,7 +57,7 @@
     </nav>
     
     <!-- Mobile Menu -->
-    <div class="mobile-menu">
+    <div class="mobile-menu" id="mobile-menu">
       <ul class="mobile-nav-links">
         <li><a href="index.html#about">Quiénes Somos</a></li>
         <li><a href="index.html#proposito">Propósito</a></li>
@@ -459,36 +459,54 @@
         const mobileOverlay = document.querySelector('.mobile-overlay');
         const mobileLinks = document.querySelectorAll('.mobile-nav-links a');
         const mobileCta = document.querySelector('.mobile-cta');
+        if (!hamburger || !mobileMenu) return;
+
+        function setExpanded(open) {
+          hamburger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
 
         function toggleMenu() {
-          hamburger.classList.toggle('active');
-          mobileMenu.classList.toggle('active');
-          mobileOverlay.classList.toggle('active');
-          document.body.style.overflow = mobileMenu.classList.contains('active') ? 'hidden' : '';
+          const open = !mobileMenu.classList.contains('active');
+          hamburger.classList.toggle('active', open);
+          mobileMenu.classList.toggle('active', open);
+          if (mobileOverlay) mobileOverlay.classList.toggle('active', open);
+          document.body.style.overflow = open ? 'hidden' : '';
+          setExpanded(open);
+          if (open) {
+            const first = mobileMenu.querySelector('a');
+            if (first) first.focus();
+          }
         }
 
-        function closeMenu() {
+        function closeMenu(refocus) {
           hamburger.classList.remove('active');
           mobileMenu.classList.remove('active');
-          mobileOverlay.classList.remove('active');
+          if (mobileOverlay) mobileOverlay.classList.remove('active');
           document.body.style.overflow = '';
+          setExpanded(false);
+          if (refocus) hamburger.focus();
         }
 
-        if (hamburger) {
-          hamburger.addEventListener('click', toggleMenu);
-        }
+        hamburger.addEventListener('click', toggleMenu);
 
         if (mobileOverlay) {
-          mobileOverlay.addEventListener('click', closeMenu);
+          mobileOverlay.addEventListener('click', function () { closeMenu(true); });
         }
 
         mobileLinks.forEach((link) => {
-          link.addEventListener('click', closeMenu);
+          link.addEventListener('click', function () { closeMenu(false); });
         });
 
         if (mobileCta) {
-          mobileCta.addEventListener('click', closeMenu);
+          mobileCta.addEventListener('click', function () { closeMenu(false); });
         }
+
+        /* Escape cierra el menú y devuelve el foco al botón */
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && mobileMenu.classList.contains('active')) {
+            closeMenu(true);
+          }
+        });
       });
     </script>
   </body>

@@ -34,10 +34,13 @@
     
     <meta name="theme-color" content="#b8892a" />
     
+    <meta property="og:image:width" content="680" />
+    <meta property="og:image:height" content="367" />
+    
     <link rel="icon" type="image/png" href="img/logo_natalia-removebg-preview.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500&family=Tenor+Sans&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@400;500&family=Tenor+Sans&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="css/styles.css" />
     
     <script type="application/ld+json">
@@ -53,6 +56,7 @@
           "url": "https://nmcabogada.com",
           "telephone": "+573146153979",
           "email": "nataliamarquezcyabogados@gmail.com",
+          "sameAs": ["https://www.instagram.com/nmcabogados/", "https://wa.me/573146153979"],
           "priceRange": "$$",
           "address": {
             "@type": "PostalAddress",
@@ -158,10 +162,6 @@
       <div class="loader-bar"></div>
     </div>
 
-    <!-- CURSOR -->
-    <div id="cur-dot"></div>
-    <div id="cur-ring"></div>
-
     <!-- NAV -->
     <nav id="nav">
       <a href="#" class="nav-logo"
@@ -178,7 +178,7 @@
         <a href="https://wa.me/573146153979" class="nav-cta" target="_blank" rel="noopener"
           >Agendar Cita</a
         >
-        <button class="hamburger" aria-label="Menú">
+        <button class="hamburger" aria-label="Menú" aria-expanded="false" aria-controls="mobile-menu">
           <span></span>
           <span></span>
           <span></span>
@@ -187,7 +187,7 @@
     </nav>
     
     <!-- Mobile Menu -->
-    <div class="mobile-menu">
+    <div class="mobile-menu" id="mobile-menu">
       <ul class="mobile-nav-links">
         <li><a href="#about">Quiénes Somos</a></li>
         <li><a href="#proposito">Propósito</a></li>
@@ -648,22 +648,20 @@
         <div class="contact-fancy-left reveal-left">
           <h2 class="contact-h2">¿Listo para dar el <span class="stroke">primer paso</span>?</h2>
           <p class="contact-fancy-desc">Estamos aquí para escucharte y acompañarte. Escríbenos o agenda tu consulta, ¡te responderemos pronto!</p>
-          <div class="contact-fancy-social">
-          </div>
         </div>
         <div class="contact-fancy-right reveal-right">
           <form class="contact-fancy-form" id="cf-whatsapp-form" autocomplete="off">
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-nombre">Tu nombre</label>
-              <input type="text" id="cf-nombre" name="nombre" placeholder="Tu nombre" required />
+              <input type="text" id="cf-nombre" name="nombre" placeholder="Tu nombre" autocomplete="name" required />
             </div>
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-telefono">Tu teléfono</label>
-              <input type="tel" id="cf-telefono" name="telefono" placeholder="Tu teléfono" pattern="[0-9\s\-\+]{7,15}" required />
+              <input type="tel" id="cf-telefono" name="telefono" placeholder="Tu teléfono" pattern="[0-9\s\-\+]{7,15}" autocomplete="tel" required />
             </div>
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-email">Tu email</label>
-              <input type="email" id="cf-email" name="email" placeholder="Tu email" required />
+              <input type="email" id="cf-email" name="email" placeholder="Tu email" autocomplete="email" required />
             </div>
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-mensaje">¿En qué podemos ayudarte?</label>

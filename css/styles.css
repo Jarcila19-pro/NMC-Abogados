@@ -427,12 +427,16 @@ nav.solid {
   background: var(--ink);
   padding: 100px 32px 40px;
   z-index: 9999;
-  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  visibility: hidden; /* evita que el foco de teclado caiga en el menú cerrado */
+  transition:
+    right 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.4s;
   border-left: 1px solid rgba(184, 137, 42, 0.15);
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
 }
 .mobile-menu.active {
   right: 0;
+  visibility: visible;
 }
 .mobile-nav-links {
   list-style: none;
@@ -1257,25 +1261,6 @@ nav.solid {
   height: 100%;
 }
 
-/* giant watermark */
-#services .svc-bg-word {
-  position: absolute;
-  bottom: -80px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: "Playfair Display", serif;
-  font-size: 22vw;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--gx);
-  -webkit-text-stroke: 2.5px var(--g);
-  pointer-events: none;
-  user-select: none;
-  white-space: nowrap;
-  letter-spacing: -0.04em;
-  z-index: 0;
-}
-
 /* ── HEADER ── */
 .svc-top {
   max-width: 1200px;
@@ -1561,7 +1546,7 @@ nav.solid {
 }
 .svc-card-tag {
   font-family: "Tenor Sans", serif;
-  font-size: 0.54rem;
+  font-size: 0.66rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   padding: 5px 13px;
@@ -1996,57 +1981,6 @@ nav.solid {
   transition: color 0.3s;
   font-family: "DM Sans", sans-serif;
 }
-.contact-cta-wrap {
-  text-align: center;
-}
-.contact-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--ink);
-  color: var(--gx);
-  padding: 22px 64px;
-  font-family: "Tenor Sans", serif;
-  font-size: 0.75rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  text-decoration: none;
-  border: 1.5px solid rgba(184, 137, 42, 0.3);
-  position: relative;
-  overflow: hidden;
-  transition: color 0.4s;
-}
-.contact-cta::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--g);
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 0;
-}
-.contact-cta:hover {
-  color: var(--ink);
-  border-color: var(--g);
-}
-.contact-cta:hover::before {
-  transform: scaleX(1);
-  transform-origin: left;
-}
-.contact-cta span {
-  position: relative;
-  z-index: 1;
-}
-.contact-cta-arrow {
-  position: relative;
-  z-index: 1;
-  transition: transform 0.3s;
-}
-.contact-cta:hover .contact-cta-arrow {
-  transform: translateX(6px);
-}
-
 /* FOOTER */
 footer {
   background: var(--ink);

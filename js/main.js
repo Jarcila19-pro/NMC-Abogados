@@ -7,33 +7,8 @@ const reduceMotion =
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// CURSOR
-const dot = document.getElementById("cur-dot");
-const ring = document.getElementById("cur-ring");
-let mx = 0,
-  my = 0,
-  rx = 0,
-  ry = 0;
-if (dot && ring && reduceMotion) {
-  // Sin movimiento: ocultar el cursor decorativo y usar el nativo
-  dot.style.display = "none";
-  ring.style.display = "none";
-}
-if (dot && ring && !reduceMotion) {
-  document.addEventListener("mousemove", (e) => {
-    mx = e.clientX;
-    my = e.clientY;
-    dot.style.left = mx + "px";
-    dot.style.top = my + "px";
-  });
-  (function raf() {
-    rx += (mx - rx) * 0.14;
-    ry += (my - ry) * 0.14;
-    ring.style.left = rx + "px";
-    ring.style.top = ry + "px";
-    requestAnimationFrame(raf);
-  })();
-}
+// (Cursor personalizado eliminado: estaba sin estilos — era código muerto que
+//  consumía un requestAnimationFrame infinito sin verse en pantalla.)
 
 // NAV
 window.addEventListener("scroll", () => {
@@ -62,7 +37,10 @@ document
 // SMOOTH ANCHORS
 document.querySelectorAll('a[href^="#"]').forEach((a) => {
   a.addEventListener("click", (e) => {
-    const t = document.querySelector(a.getAttribute("href"));
+    const href = a.getAttribute("href");
+    // Ignorar anclas vacías ("#") — querySelector("#") lanzaría un error
+    if (!href || href.length < 2) return;
+    const t = document.querySelector(href);
     if (t) {
       e.preventDefault();
       t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
@@ -79,17 +57,19 @@ window.addEventListener("scroll", () => {
 });
 
 // MAGNETIC BUTTONS
-document.querySelectorAll(".btn-gold,.nav-cta,.contact-cta").forEach((btn) => {
-  btn.addEventListener("mousemove", (e) => {
-    const r = btn.getBoundingClientRect();
-    const x = e.clientX - r.left - r.width / 2;
-    const y = e.clientY - r.top - r.height / 2;
-    btn.style.transform = `translate(${x * 0.12}px,${y * 0.12}px)`;
+if (!reduceMotion) {
+  document.querySelectorAll(".btn-gold,.nav-cta").forEach((btn) => {
+    btn.addEventListener("mousemove", (e) => {
+      const r = btn.getBoundingClientRect();
+      const x = e.clientX - r.left - r.width / 2;
+      const y = e.clientY - r.top - r.height / 2;
+      btn.style.transform = `translate(${x * 0.12}px,${y * 0.12}px)`;
+    });
+    btn.addEventListener("mouseleave", () => {
+      btn.style.transform = "";
+    });
   });
-  btn.addEventListener("mouseleave", () => {
-    btn.style.transform = "";
-  });
-});
+}
 
 // ═══════════════════════════════════════════
 // NMC ABOGADOS — Services Section JS
@@ -211,31 +191,33 @@ document.querySelectorAll(".btn-gold,.nav-cta,.contact-cta").forEach((btn) => {
     });
   }
 
-  // 3. 3D tilt on mouse
-  cards.forEach(function (card) {
-    card.addEventListener("mouseenter", function () {
-      card.style.transition = "transform .12s linear, border-color .5s";
-    });
+  // 3. 3D tilt on mouse (desactivado con movimiento reducido)
+  if (!reduceMotion) {
+    cards.forEach(function (card) {
+      card.addEventListener("mouseenter", function () {
+        card.style.transition = "transform .12s linear, border-color .5s";
+      });
 
-    card.addEventListener("mousemove", function (e) {
-      var r = card.getBoundingClientRect();
-      var x = ((e.clientX - r.left) / r.width - 0.5) * 10;
-      var y = ((e.clientY - r.top) / r.height - 0.5) * 8;
-      card.style.transform =
-        "perspective(1000px) rotateY(" +
-        x +
-        "deg) rotateX(" +
-        -y +
-        "deg) scale3d(1.018,1.018,1.018)";
-    });
+      card.addEventListener("mousemove", function (e) {
+        var r = card.getBoundingClientRect();
+        var x = ((e.clientX - r.left) / r.width - 0.5) * 10;
+        var y = ((e.clientY - r.top) / r.height - 0.5) * 8;
+        card.style.transform =
+          "perspective(1000px) rotateY(" +
+          x +
+          "deg) rotateX(" +
+          -y +
+          "deg) scale3d(1.018,1.018,1.018)";
+      });
 
-    card.addEventListener("mouseleave", function () {
-      card.style.transition =
-        "transform .6s cubic-bezier(.4,0,.2,1), opacity .85s cubic-bezier(.16,1,.3,1), border-color .5s";
-      card.style.transform =
-        "perspective(1000px) rotateY(0deg) rotateX(0deg) scale3d(1,1,1)";
+      card.addEventListener("mouseleave", function () {
+        card.style.transition =
+          "transform .6s cubic-bezier(.4,0,.2,1), opacity .85s cubic-bezier(.16,1,.3,1), border-color .5s";
+        card.style.transform =
+          "perspective(1000px) rotateY(0deg) rotateX(0deg) scale3d(1,1,1)";
+      });
     });
-  });
+  }
 })();
 
 // Solo permite un why-row activo a la vez
@@ -257,34 +239,58 @@ document.addEventListener("DOMContentLoaded", function () {
   const mobileOverlay = document.querySelector(".mobile-overlay");
   const mobileLinks = document.querySelectorAll(".mobile-nav-links a");
   const mobileCta = document.querySelector(".mobile-cta");
+  if (!hamburger || !mobileMenu) return;
+
+  function setExpanded(open) {
+    hamburger.setAttribute("aria-expanded", open ? "true" : "false");
+  }
 
   function toggleMenu() {
-    hamburger.classList.toggle("active");
-    mobileMenu.classList.toggle("active");
-    mobileOverlay.classList.toggle("active");
-    document.body.style.overflow = mobileMenu.classList.contains("active") ? "hidden" : "";
+    const open = !mobileMenu.classList.contains("active");
+    hamburger.classList.toggle("active", open);
+    mobileMenu.classList.toggle("active", open);
+    if (mobileOverlay) mobileOverlay.classList.toggle("active", open);
+    document.body.style.overflow = open ? "hidden" : "";
+    setExpanded(open);
+    if (open) {
+      const first = mobileMenu.querySelector("a");
+      if (first) first.focus();
+    }
   }
 
-  function closeMenu() {
+  function closeMenu(refocus) {
     hamburger.classList.remove("active");
     mobileMenu.classList.remove("active");
-    mobileOverlay.classList.remove("active");
+    if (mobileOverlay) mobileOverlay.classList.remove("active");
     document.body.style.overflow = "";
+    setExpanded(false);
+    if (refocus) hamburger.focus();
   }
 
-  if (hamburger) {
-    hamburger.addEventListener("click", toggleMenu);
-  }
+  hamburger.addEventListener("click", toggleMenu);
 
   if (mobileOverlay) {
-    mobileOverlay.addEventListener("click", closeMenu);
+    mobileOverlay.addEventListener("click", function () {
+      closeMenu(true);
+    });
   }
 
   mobileLinks.forEach((link) => {
-    link.addEventListener("click", closeMenu);
+    link.addEventListener("click", function () {
+      closeMenu(false);
+    });
   });
 
   if (mobileCta) {
-    mobileCta.addEventListener("click", closeMenu);
+    mobileCta.addEventListener("click", function () {
+      closeMenu(false);
+    });
   }
+
+  /* Escape cierra el menú y devuelve el foco al botón */
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && mobileMenu.classList.contains("active")) {
+      closeMenu(true);
+    }
+  });
 });

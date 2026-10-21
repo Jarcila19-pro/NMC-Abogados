@@ -237,12 +237,16 @@ nav {
   background: var(--ink);
   padding: 100px 32px 40px;
   z-index: 600;
-  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  visibility: hidden; /* evita que el foco de teclado caiga en el menú cerrado */
+  transition:
+    right 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.4s;
   border-left: 1px solid rgba(184, 137, 42, 0.15);
 }
 
 .mobile-menu.active {
   right: 0;
+  visibility: visible;
 }
 
 .mobile-nav-links {
