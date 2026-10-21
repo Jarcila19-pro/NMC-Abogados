@@ -1853,7 +1853,7 @@ nav.solid {
   color: rgba(184, 137, 42, 0.45);
 }
 
-.why-content h4 {
+.why-content h3 {
   font-family: "Tenor Sans", serif;
   font-size: 0.85rem;
   letter-spacing: 0.06em;
@@ -1862,7 +1862,7 @@ nav.solid {
   margin-bottom: 8px;
   transition: color 0.3s;
 }
-.why-row:hover .why-content h4 {
+.why-row:hover .why-content h3 {
   color: var(--gx);
 }
 .why-content p {
@@ -2484,7 +2484,7 @@ footer {
   .why-idx {
     font-size: 0.9rem;
   }
-  .why-content h4 {
+  .why-content h3 {
     font-size: 0.78rem;
   }
   .why-content p {
@@ -2748,7 +2748,7 @@ footer {
   .why-idx {
     font-size: 0.85rem;
   }
-  .why-content h4 {
+  .why-content h3 {
     font-size: 0.72rem;
   }
   .why-content p {
@@ -3009,5 +3009,75 @@ footer {
   }
   .blog-intro {
     color: #5a4e3a;
+  }
+}
+
+/* ══════════════════════════════════════════
+   ACCESIBILIDAD (WCAG 2.2)
+   ══════════════════════════════════════════ */
+
+/* Texto disponible solo para lectores de pantalla */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Enlace "saltar al contenido": invisible hasta recibir foco de teclado */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 10000;
+  background: var(--g, #b8892a);
+  color: var(--ink, #0f0d09);
+  font-family: "Tenor Sans", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  border-radius: 0 0 6px 6px;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Foco visible (teclado) en formulario, enlaces y botones */
+.cf-form-group input:focus-visible,
+.cf-form-group textarea:focus-visible {
+  outline: 2px solid var(--g, #b8892a);
+  outline-offset: 2px;
+  border-color: var(--g, #b8892a);
+}
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--gx, #f0c766);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* El menú fijo no debe tapar el inicio de cada sección al navegar por anclas */
+section[id],
+main[id] {
+  scroll-margin-top: 76px;
+}
+
+/* Respeto por la preferencia de movimiento reducido del usuario */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

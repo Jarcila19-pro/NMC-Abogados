@@ -25,6 +25,8 @@
    <link rel="stylesheet" href="css/privacidad.css" />
   </head>
   <body>
+    <!-- SKIP LINK (accesibilidad) -->
+    <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
 
     <!-- LOADER -->
     <div id="loader">
@@ -45,7 +47,7 @@
         <li><a href="index.html#contact">Contacto</a></li>
       </ul>
       <div class="nav-right">
-        <a href="https://wa.me/573146153979" class="nav-cta" target="_blank">Agendar Cita</a>
+        <a href="https://wa.me/573146153979" class="nav-cta" target="_blank" rel="noopener">Agendar Cita</a>
         <button class="hamburger" aria-label="Menú">
           <span></span>
           <span></span>
@@ -63,12 +65,12 @@
         <li><a href="index.html#academic">Formación</a></li>
         <li><a href="index.html#contact">Contacto</a></li>
       </ul>
-      <a href="https://wa.me/573146153979" class="mobile-cta" target="_blank">Agendar Cita</a>
+      <a href="https://wa.me/573146153979" class="mobile-cta" target="_blank" rel="noopener">Agendar Cita</a>
     </div>
     <div class="mobile-overlay"></div>
 
     <!-- PAGE HEADER -->
-    <div class="page-header">
+    <div class="page-header" id="contenido">
       <div class="page-header-word">LEGAL</div>
       <div class="page-header-inner">
         <div class="page-eyebrow">
@@ -99,14 +101,14 @@
     </div>
 
     <!-- TABS -->
-    <div class="tabs-bar">
-      <button class="tab-btn active" onclick="switchTab('datos')">Política de Datos</button>
-      <button class="tab-btn" onclick="switchTab('terminos')">Términos y Condiciones</button>
-      <button class="tab-btn" onclick="switchTab('publicidad')">Manual de Publicidad</button>
+    <div class="tabs-bar" role="tablist" aria-label="Secciones de políticas">
+      <button class="tab-btn active" id="tab-datos" role="tab" aria-selected="true" aria-controls="panel-datos" onclick="switchTab('datos')">Política de Datos</button>
+      <button class="tab-btn" id="tab-terminos" role="tab" aria-selected="false" aria-controls="panel-terminos" tabindex="-1" onclick="switchTab('terminos')">Términos y Condiciones</button>
+      <button class="tab-btn" id="tab-publicidad" role="tab" aria-selected="false" aria-controls="panel-publicidad" tabindex="-1" onclick="switchTab('publicidad')">Manual de Publicidad</button>
     </div>
 
     <!-- ══════════ PANEL: DATOS ══════════ -->
-    <div class="panel active" id="panel-datos">
+    <div class="panel active" id="panel-datos" role="tabpanel" aria-labelledby="tab-datos">
       <div class="content-wrap">
 
         <div class="legal-section">
@@ -123,27 +125,27 @@
           <h2>Principios que<br><em>nos Rigen</em></h2>
           <div class="principles-grid">
             <div class="principle-card">
-              <h4>Consentimiento</h4>
+              <h3>Consentimiento</h3>
               <p>Se requiere la autorización previa, explícita e informada del titular para el tratamiento de sus datos personales.</p>
             </div>
             <div class="principle-card">
-              <h4>Legalidad</h4>
+              <h3>Legalidad</h3>
               <p>Se cumplen estrictamente las disposiciones legales aplicables al tratamiento de datos y derechos fundamentales.</p>
             </div>
             <div class="principle-card">
-              <h4>Libertad</h4>
+              <h3>Libertad</h3>
               <p>No se obtienen ni divulgan datos sin autorización previa, excepto cuando lo permita expresamente la ley.</p>
             </div>
             <div class="principle-card">
-              <h4>Finalidad</h4>
+              <h3>Finalidad</h3>
               <p>El tratamiento se realiza únicamente para fines legítimos conforme a la Constitución y la Ley, informando al titular.</p>
             </div>
             <div class="principle-card">
-              <h4>Veracidad</h4>
+              <h3>Veracidad</h3>
               <p>Se garantiza que los datos sean veraces, completos, exactos y actualizados. Se prohíben datos parciales o engañosos.</p>
             </div>
             <div class="principle-card">
-              <h4>Transparencia</h4>
+              <h3>Transparencia</h3>
               <p>El titular puede acceder en cualquier momento y sin restricciones a la información sobre sus datos personales.</p>
             </div>
           </div>
@@ -249,7 +251,7 @@
     </div>
 
     <!-- ══════════ PANEL: TÉRMINOS ══════════ -->
-    <div class="panel" id="panel-terminos">
+    <div class="panel" id="panel-terminos" role="tabpanel" aria-labelledby="tab-terminos">
       <div class="content-wrap">
 
         <div class="legal-section">
@@ -311,7 +313,7 @@
     </div>
 
     <!-- ══════════ PANEL: PUBLICIDAD ══════════ -->
-    <div class="panel" id="panel-publicidad">
+    <div class="panel" id="panel-publicidad" role="tabpanel" aria-labelledby="tab-publicidad">
       <div class="content-wrap">
 
         <div class="legal-section">
@@ -382,10 +384,10 @@
         <a href="privacidad.html" style="color: var(--g, #b8892a); text-decoration: none; font-size: 0.78rem; letter-spacing: 0.06em; opacity: 0.85; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Tratamiento de Datos</a>
       </div>
       <div class="footer-social">
-        <a href="https://instagram.com/nmcabogados" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-instagram" viewBox="0 0 16 16">
+        <a href="https://instagram.com/nmcabogados" target="_blank" rel="noopener" aria-label="Instagram de N.M.C Abogados"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-instagram" viewBox="0 0 16 16">
   <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92m-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217m0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334"/>
 </svg></a>
-        <a href="https://wa.me/573146153979" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-whatsapp" viewBox="0 0 16 16">
+        <a href="https://wa.me/573146153979" target="_blank" rel="noopener" aria-label="WhatsApp de N.M.C Abogados"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-whatsapp" viewBox="0 0 16 16">
   <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
 </svg></a>
       </div>
@@ -399,14 +401,39 @@
 
       /* ── TABS ── */
       function switchTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         const map = { datos: 0, terminos: 1, publicidad: 2 };
-        document.querySelectorAll('.tab-btn')[map[tab]].classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach((b, idx) => {
+          const on = idx === map[tab];
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+          b.tabIndex = on ? 0 : -1;
+        });
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         document.getElementById('panel-' + tab).classList.add('active');
-        document.querySelector('.tabs-bar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        document.querySelector('.tabs-bar').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
         // re-trigger reveal for newly visible sections
         observeSections();
+      }
+
+      /* ── TABS: navegación con flechas del teclado (patrón ARIA) ── */
+      const tabsBar = document.querySelector('.tabs-bar');
+      if (tabsBar) {
+        tabsBar.addEventListener('keydown', (e) => {
+          const btns = Array.from(document.querySelectorAll('.tab-btn'));
+          const i = btns.indexOf(document.activeElement);
+          if (i < 0) return;
+          let n = null;
+          if (e.key === 'ArrowRight') n = (i + 1) % btns.length;
+          if (e.key === 'ArrowLeft') n = (i - 1 + btns.length) % btns.length;
+          if (e.key === 'Home') n = 0;
+          if (e.key === 'End') n = btns.length - 1;
+          if (n !== null) {
+            e.preventDefault();
+            btns[n].focus();
+            btns[n].click();
+          }
+        });
       }
 
       /* ── SCROLL REVEAL ── */

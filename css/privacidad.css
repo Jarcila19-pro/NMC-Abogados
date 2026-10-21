@@ -749,7 +749,7 @@ nav {
 }
 
 /* Títulos y Tipografía */
-.principle-card h4 {
+.principle-card h3 {
   font-family: "Playfair Display", serif;
   font-size: 0.98rem;
   font-weight: 700;
@@ -1168,7 +1168,7 @@ footer {
     padding: 20px;
   }
 
-  .principle-card h4 {
+  .principle-card h3 {
     font-size: 1rem;
   }
 
@@ -1294,7 +1294,7 @@ footer {
     padding: 16px;
   }
 
-  .principle-card h4 {
+  .principle-card h3 {
     font-size: 0.95rem;
     margin-bottom: 8px;
   }
@@ -1492,7 +1492,7 @@ footer {
     padding: 14px;
   }
 
-  .principle-card h4 {
+  .principle-card h3 {
     font-size: 0.88rem;
     margin-bottom: 6px;
   }
@@ -1582,5 +1582,68 @@ footer {
 
   .rights-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ══════════════════════════════════════════
+   ACCESIBILIDAD (WCAG 2.2)
+   ══════════════════════════════════════════ */
+
+/* Texto disponible solo para lectores de pantalla */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Enlace "saltar al contenido": invisible hasta recibir foco de teclado */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 10000;
+  background: #b8892a;
+  color: #0f0d09;
+  font-family: "Tenor Sans", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  border-radius: 0 0 6px 6px;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Foco visible (teclado) en enlaces, botones y pestañas */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #f0c766;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* El menú fijo no debe tapar el inicio del contenido */
+.page-header {
+  scroll-margin-top: 76px;
+}
+
+/* Respeto por la preferencia de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
