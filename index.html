@@ -37,7 +37,9 @@
     <meta property="og:image:width" content="680" />
     <meta property="og:image:height" content="367" />
     
-    <link rel="icon" type="image/png" href="img/logo_natalia-removebg-preview.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="img/favicon-64.png" />
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@400;500&family=Tenor+Sans&display=swap" rel="stylesheet"/>
@@ -155,7 +157,7 @@
   </head>
   <body>
     <!-- SKIP LINK (accesibilidad: primer elemento enfocable con Teclado) -->
-    <a class="skip-link" href="#hero">Saltar al contenido principal</a>
+    <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
     <!-- LOADER -->
     <div id="loader">
       <div class="loader-logo">N·M·C &amp; Abogados</div>
@@ -165,8 +167,14 @@
     <!-- NAV -->
     <nav id="nav">
       <a href="#" class="nav-logo"
-        ><img src="img/logo_natalia-removebg-preview.png" alt="NMC Logo"
-      /></a>
+        ><picture
+          ><source srcset="img/logo-nmc.webp" type="image/webp" /><img
+            src="img/logo_natalia-removebg-preview.png"
+            alt="NMC Logo"
+            width="400"
+            height="216"
+            decoding="async"
+        /></picture></a>
       <ul class="nav-links">
         <li><a href="#about">Quiénes Somos</a></li>
         <li><a href="#proposito">Propósito</a></li>
@@ -175,7 +183,7 @@
         <li><a href="#contact">Contacto</a></li>
       </ul>
       <div class="nav-right">
-        <a href="https://wa.me/573146153979" class="nav-cta" target="_blank" rel="noopener"
+        <a href="#cf-whatsapp-form" class="nav-cta"
           >Agendar Cita</a
         >
         <button class="hamburger" aria-label="Menú" aria-expanded="false" aria-controls="mobile-menu">
@@ -195,12 +203,12 @@
         <li><a href="#academic">Formación</a></li>
         <li><a href="#contact">Contacto</a></li>
       </ul>
-      <a href="https://wa.me/573146153979" class="mobile-cta" target="_blank" rel="noopener">Agendar Cita</a>
+      <a href="#cf-whatsapp-form" class="mobile-cta">Agendar Cita</a>
     </div>
     <div class="mobile-overlay"></div>
 
     <!-- MAIN LANDMARK -->
-    <main id="contenido">
+    <main id="contenido" tabindex="-1">
 
     <!-- HERO -->
     <section id="hero">
@@ -231,13 +239,17 @@
         </div>
       </div>
       <div class="hero-right">
-        <img
-          src="img/natalia-quienes-somos.jpeg"
-          alt="Natalia Márquez Ceballos"
-          fetchpriority="high"
-          width="520"
-          height="650"
-        />
+        <picture>
+          <source srcset="img/natalia-quienes-somos.webp" type="image/webp" />
+          <img
+            src="img/natalia-quienes-somos.jpeg"
+            alt="Natalia Márquez Ceballos"
+            fetchpriority="high"
+            decoding="async"
+            width="1280"
+            height="853"
+          />
+        </picture>
         <div class="hero-right-overlay"></div>
       </div>
     </section>
@@ -272,7 +284,17 @@
       <div class="about-grid">
         <div class="about-photo-wrap reveal-left">
           <div class="about-photo-frame">
-            <img src="img/foto-natalia-2.jpeg" alt="Natalia Márquez" loading="lazy" width="520" height="650" />
+            <picture>
+              <source srcset="img/foto-natalia-2.webp" type="image/webp" />
+              <img
+                src="img/foto-natalia-2.jpeg"
+                alt="Natalia Márquez"
+                loading="lazy"
+                decoding="async"
+                width="780"
+                height="1040"
+              />
+            </picture>
           </div>
           <div class="about-photo-caption">
             <div class="about-photo-caption-line"></div>
@@ -314,13 +336,19 @@
     <!-- PROPOSITO -->
     <section id="proposito">
       <div class="prop-bg">
-        <img
-          src="img/natalia-hero.jpeg"
-          alt=""
-          class="prop-bg-img"
-          aria-hidden="true"
-          loading="lazy"
-        />
+        <picture>
+          <source srcset="img/natalia-hero.webp" type="image/webp" />
+          <img
+            src="img/natalia-hero.jpeg"
+            alt=""
+            class="prop-bg-img"
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            width="1280"
+            height="852"
+          />
+        </picture>
       </div>
       <div class="prop-inner">
         <div class="prop-left reveal-left">
@@ -334,11 +362,18 @@
             <span class="stroke">es</span>
           </h2>
           <p class="prop-sub">Centro de negocios · Manizales, Colombia</p>
-          <img
-            src="img/natalia-hero.jpeg"
-            alt="Natalia Márquez"
-            class="prop-photo"
-          />
+          <picture>
+            <source srcset="img/natalia-hero.webp" type="image/webp" />
+            <img
+              src="img/natalia-hero.jpeg"
+              alt="Natalia Márquez"
+              class="prop-photo"
+              loading="lazy"
+              decoding="async"
+              width="1280"
+              height="852"
+            />
+          </picture>
           <div class="prop-photo-meta">
             <span>N·M·C &amp; Abogados</span>
             <b>Est. Manizales</b>
@@ -346,7 +381,17 @@
         </div>
         <div class="prop-right reveal-right">
           <div class="prop-logo-wrap">
-            <img src="img/logo_natalia-removebg-preview.png" alt="NMC Logo" />
+            <picture>
+              <source srcset="img/logo-nmc.webp" type="image/webp" />
+              <img
+                src="img/logo_natalia-removebg-preview.png"
+                alt="NMC Logo"
+                width="400"
+                height="216"
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
             <div class="prop-logo-sep"></div>
           </div>
           <p class="prop-body">
@@ -639,8 +684,41 @@
       </div>
     </section>
 
-    <div class="gold-divider"></div>
+    <div class="gold-divider faq-divider"></div>
 
+    <!-- FAQ -->
+    <section id="faq" aria-labelledby="faq-title">
+     <div class="faq-inner">
+       <div class="svc-label">Preguntas frecuentes</div>
+       <h2 class="faq-title" id="faq-title">Resolvemos tus <em>dudas</em></h2>
+       <div class="faq-list">
+         <details class="faq-item">
+           <summary aria-controls="faq-answer-services">¿Qué servicios legales ofrece Natalia Márquez Ceballos?</summary>
+           <div class="faq-answer" id="faq-answer-services">
+             <p>Ofrecemos asesoría en Derecho Civil, Derecho Comercial, Derecho de Familia, Laboral y Seguridad Social. Incluye contratos, sucesiones, divorcios, constitución de empresas, reclamaciones por accidentes, reclamaciones ante aseguradoras y más.</p>
+           </div>
+         </details>
+         <details class="faq-item">
+           <summary aria-controls="faq-answer-location">¿Dónde está ubicada la oficina?</summary>
+           <div class="faq-answer" id="faq-answer-location">
+             <p>Estamos en Cra 24 #22-02 Of. 1103, Manizales, Caldas, Colombia.</p>
+           </div>
+         </details>
+         <details class="faq-item">
+           <summary aria-controls="faq-answer-consultation">¿Ofrecen consulta gratuita?</summary>
+           <div class="faq-answer" id="faq-answer-consultation">
+             <p>Sí, primera consulta gratuita para evaluar tu caso y orientarte sobre las opciones legales.</p>
+           </div>
+         </details>
+         <details class="faq-item">
+           <summary aria-controls="faq-answer-coverage">¿Atienden en todo el Eje Cafetero?</summary>
+           <div class="faq-answer" id="faq-answer-coverage">
+             <p>Sí, prestamos servicios en Manizales, Caldas y toda la región del Eje Cafetero.</p>
+           </div>
+         </details>
+       </div>
+     </div>
+    </section>
 
     <!-- CONTACT -->
     <section id="contact">
@@ -653,23 +731,30 @@
           <form class="contact-fancy-form" id="cf-whatsapp-form" autocomplete="off">
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-nombre">Tu nombre</label>
-              <input type="text" id="cf-nombre" name="nombre" placeholder="Tu nombre" autocomplete="name" required />
+              <input type="text" id="cf-nombre" name="nombre" placeholder="Tu nombre" autocomplete="name" minlength="2" maxlength="80" required />
             </div>
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-telefono">Tu teléfono</label>
-              <input type="tel" id="cf-telefono" name="telefono" placeholder="Tu teléfono" pattern="[0-9\s\-\+]{7,15}" autocomplete="tel" required />
+              <input type="tel" id="cf-telefono" name="telefono" inputmode="tel" pattern="[+]?[0-9][0-9\s\-]{5,19}" maxlength="20" placeholder="Tu teléfono" autocomplete="tel" required />
             </div>
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-email">Tu email</label>
-              <input type="email" id="cf-email" name="email" placeholder="Tu email" autocomplete="email" required />
+              <input type="email" id="cf-email" name="email" placeholder="Tu email" autocomplete="email" maxlength="120" required />
             </div>
             <div class="cf-form-group">
               <label class="visually-hidden" for="cf-mensaje">¿En qué podemos ayudarte?</label>
-              <textarea id="cf-mensaje" name="mensaje" placeholder="¿En qué podemos ayudarte?" required></textarea>
+              <textarea id="cf-mensaje" name="mensaje" placeholder="¿En qué podemos ayudarte?" maxlength="1500" required></textarea>
             </div>
-            <button type="submit" class="cf-btn">Enviar mensaje</button>
-            <div class="cf-form-success" role="status">¡Listo! Se abrió WhatsApp con tu mensaje: solo presiona «Enviar» para completarlo.</div>
+            <button type="submit" class="cf-btn">Continuar en WhatsApp</button>
+            <p class="cf-form-status" id="cf-form-status" role="status" aria-live="polite" aria-atomic="true" tabindex="-1"></p>
           </form>
+          <noscript>
+            <p class="cf-noscript">
+              El formulario necesita JavaScript. Puedes escribirnos por
+              <a href="https://wa.me/573146153979">WhatsApp</a> o llamar al
+              <a href="tel:+573146153979">314 615 3979</a>.
+            </p>
+          </noscript>
           <div class="contact-fancy-info">
             <div><b>Oficina:</b> Cra 24 #22-02 Of. 1103, Manizales</div>
             <div><b>Teléfono:</b> <a href="https://wa.me/573146153979" target="_blank" rel="noopener">314 615 3979</a></div>
@@ -685,7 +770,17 @@
     <!-- FOOTER -->
     <footer>
       <div class="footer-logo">
-        <img src="img/logo_natalia-removebg-preview.png" alt="NMC Logo" />
+        <picture>
+          <source srcset="img/logo-nmc.webp" type="image/webp" />
+          <img
+            src="img/logo_natalia-removebg-preview.png"
+            alt="NMC Logo"
+            width="400"
+            height="216"
+            loading="lazy"
+            decoding="async"
+          />
+        </picture>
       </div>
       <div class="footer-copy">
         © 2026 Natalia Márquez Ceballos. Desarrollado por TecLook · Todos los derechos reservados ·
@@ -694,7 +789,7 @@
         <a href="privacidad.html" style="color: var(--gold, #c9a84c); text-decoration: none; font-size: 0.78rem; letter-spacing: 0.06em; opacity: 0.85; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">Tratamiento de Datos</a>
       </div>
       <div class="footer-social">
-        <a href="https://instagram.com/nmcabogados" target="_blank" rel="noopener" aria-label="Instagram de N.M.C Abogados"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-instagram" viewBox="0 0 16 16">
+        <a href="https://instagram.com/nmcabogados" target="_blank" rel="noopener noreferrer" aria-label="Instagram de N.M.C Abogados"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-instagram" viewBox="0 0 16 16">
   <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92m-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217m0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334"/>
 </svg></a>
         <a href="https://wa.me/573146153979" target="_blank" rel="noopener" aria-label="WhatsApp de N.M.C Abogados"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-whatsapp" viewBox="0 0 16 16">
@@ -702,6 +797,72 @@
 </svg></a>
       </div>
 </footer>
+    <div class="whatsapp-widget" id="whatsapp-widget">
+      <section
+        class="whatsapp-panel"
+        id="whatsapp-widget-panel"
+        aria-labelledby="whatsapp-widget-title"
+        aria-hidden="true"
+      >
+        <div class="whatsapp-panel-header">
+          <div class="whatsapp-panel-brand">
+            <span class="whatsapp-panel-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+              </svg>
+            </span>
+            <div>
+              <h2 id="whatsapp-widget-title">N.M.C. &amp; Abogados</h2>
+              <p>Atención directa por WhatsApp</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="whatsapp-panel-close"
+            aria-label="Cerrar chat de WhatsApp"
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="whatsapp-panel-body">
+          <p class="whatsapp-bubble">
+            ¡Hola! 👋 ¿En qué podemos ayudarte con tu consulta?
+          </p>
+          <p class="whatsapp-panel-note">
+            Al abrir WhatsApp podrás revisar y enviar tu mensaje.
+          </p>
+        </div>
+        <div class="whatsapp-panel-footer">
+          <a
+            class="whatsapp-panel-link"
+            href="https://wa.me/573146153979?text=Hola%2C%20quisiera%20agendar%20una%20consulta."
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+              </svg>
+            </span>
+            Abrir chat en WhatsApp
+          </a>
+        </div>
+      </section>
+      <button
+        type="button"
+        class="whatsapp-widget-toggle"
+        aria-label="Abrir chat de WhatsApp"
+        aria-controls="whatsapp-widget-panel"
+        aria-expanded="false"
+      >
+        <span class="whatsapp-widget-open-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+          </svg>
+        </span>
+        <span class="whatsapp-widget-close-icon" aria-hidden="true">&times;</span>
+      </button>
+    </div>
     <!-- Loader script -->
     <script>
       window.addEventListener('load', function() {
@@ -710,31 +871,10 @@
           if (loader) {
             loader.classList.add('gone');
           }
-        }, 800);
+        }, 250);
       });
 </script>
     
-    <!-- Form WhatsApp -->
-    <script>
-      var form = document.getElementById('cf-whatsapp-form');
-      if (form) {
-        form.addEventListener('submit', function(e) {
-          e.preventDefault();
-          var nombre = form.nombre.value.trim();
-          var telefono = form.telefono.value.trim();
-          var email = form.email.value.trim();
-          var mensaje = form.mensaje.value.trim();
-          var texto =
-            'Hola, soy ' + nombre + '%0A' +
-            'Teléfono: ' + telefono + '%0A' +
-            'Email: ' + email + '%0A' +
-            'Mensaje: ' + mensaje;
-          var url = 'https://wa.me/573146153979?text=' + texto;
-          window.open(url, '_blank');
-          form.classList.add('sent');
-        });
-      }
-    </script>
     <script src="js/main.js"></script>
   </body>
 </html>

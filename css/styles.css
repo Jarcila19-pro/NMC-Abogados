@@ -1,3 +1,13 @@
+/* Las imágenes envueltas en <picture> no deben crear una caja extra */
+picture {
+  display: contents;
+}
+
+/* El destino del skip link recibe foco programático sin dibujar un marco completo */
+main:focus {
+  outline: none;
+}
+
 /* CONTACT FANCY (nuevo diseño) */
 .contact-fancy {
   display: flex;
@@ -70,7 +80,203 @@
   gap: 18px;
   position: relative;
   animation: fadeInUp 1s cubic-bezier(0.4, 0, 0.2, 1);
+  scroll-margin-top: 96px;
 }
+
+/* WHATSAPP CONTACT WIDGET */
+.whatsapp-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 600;
+}
+.whatsapp-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 16px);
+  width: min(360px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid rgba(184, 137, 42, 0.35);
+  border-radius: 20px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 16px 48px rgba(8, 6, 8, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(12px) scale(0.98);
+  transform-origin: bottom right;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    visibility 0.2s;
+}
+.whatsapp-widget.is-open .whatsapp-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.whatsapp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--ink);
+  color: var(--paper);
+}
+.whatsapp-panel-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.whatsapp-panel-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 1px solid rgba(184, 137, 42, 0.5);
+  border-radius: 50%;
+  color: var(--g);
+}
+.whatsapp-panel-icon svg,
+.whatsapp-panel-link svg,
+.whatsapp-widget-toggle svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+.whatsapp-panel-brand h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.whatsapp-panel-brand p {
+  margin-top: 4px;
+  color: var(--gx);
+  font-size: 0.72rem;
+}
+.whatsapp-panel-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--paper);
+  cursor: pointer;
+  font-size: 1.7rem;
+  line-height: 1;
+  transition: background 0.2s;
+}
+.whatsapp-panel-close:hover {
+  background: rgba(247, 242, 232, 0.12);
+}
+.whatsapp-panel-body {
+  min-height: 148px;
+  padding: 20px;
+  background: var(--paperd);
+}
+.whatsapp-bubble {
+  width: fit-content;
+  max-width: 90%;
+  padding: 12px 14px;
+  border: 1px solid rgba(184, 137, 42, 0.14);
+  border-radius: 4px 14px 14px;
+  background: #fff;
+  color: #3d3529;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  box-shadow: 0 2px 8px rgba(8, 6, 8, 0.06);
+}
+.whatsapp-panel-note {
+  margin-top: 14px;
+  color: #6a5e4a;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.whatsapp-panel-footer {
+  padding: 14px 16px 16px;
+  background: var(--paper);
+}
+.whatsapp-panel-link {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 16px;
+  border: 1px solid var(--g);
+  border-radius: 999px;
+  background: var(--g);
+  color: var(--ink);
+  font-family: "Tenor Sans", serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-decoration: none;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
+}
+.whatsapp-panel-link:hover {
+  transform: translateY(-1px);
+  background: var(--gx);
+}
+.whatsapp-panel-link svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.whatsapp-widget-toggle {
+  display: grid;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  border: 1px solid var(--gx);
+  border-radius: 50%;
+  background: var(--g);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow:
+    0 5px 20px rgba(8, 6, 8, 0.28),
+    0 0 0 4px rgba(184, 137, 42, 0.2);
+  transition:
+    background 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+.whatsapp-widget-toggle:hover {
+  transform: translateY(-2px);
+  background: var(--gx);
+  box-shadow:
+    0 7px 24px rgba(8, 6, 8, 0.32),
+    0 0 0 5px rgba(184, 137, 42, 0.25);
+}
+.whatsapp-widget-close-icon {
+  display: none;
+  font-size: 2rem;
+  line-height: 1;
+}
+.whatsapp-widget.is-open .whatsapp-widget-open-icon {
+  display: none;
+}
+.whatsapp-widget.is-open .whatsapp-widget-close-icon {
+  display: block;
+}
+.whatsapp-widget-toggle:focus-visible,
+.whatsapp-panel-close:focus-visible,
+.whatsapp-panel-link:focus-visible {
+  outline: 2px solid var(--gd);
+  outline-offset: 3px;
+}
+
 .cf-form-group {
   display: flex;
   flex-direction: column;
@@ -121,22 +327,38 @@
   background: var(--gx);
   color: var(--ink);
 }
-.cf-form-success {
+.cf-form-status {
   display: none;
-  color: var(--g);
-  font-size: 1.1rem;
+  color: var(--gd);
+  font-size: 0.95rem;
+  line-height: 1.7;
   margin-top: 12px;
-  text-align: center;
-  font-family: "Playfair Display", serif;
+  font-family: "DM Sans", sans-serif;
 }
-.contact-fancy-form.sent .cf-form-success {
+.cf-form-status:not(:empty) {
   display: block;
   animation: fadeIn 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.contact-fancy-form.sent input,
-.contact-fancy-form.sent textarea,
-.contact-fancy-form.sent .cf-btn {
-  display: none;
+.cf-form-status a {
+  color: var(--gd);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cf-form-status:focus {
+  outline: 2px solid var(--g);
+  outline-offset: 4px;
+}
+.cf-noscript {
+  margin-top: 14px;
+  color: #6a5e4a;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.cf-noscript a {
+  color: var(--gd);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .contact-fancy-info {
   margin-top: 32px;
@@ -157,6 +379,81 @@
     min-width: 0;
   }
 }
+
+/* FAQ */
+#faq {
+  background: var(--paper);
+  padding: 50px 80px 36px;
+  position: relative;
+}
+.faq-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.faq-title {
+  color: var(--ink);
+  font-family: "Playfair Display", serif;
+  font-size: clamp(2.4rem, 4.5vw, 4.4rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  margin-top: 12px;
+}
+.faq-title em {
+  color: var(--gd);
+  font-style: italic;
+}
+.faq-list {
+  border-top: 1px solid rgba(184, 137, 42, 0.25);
+  margin-top: 24px;
+}
+.faq-item {
+  border-bottom: 1px solid rgba(184, 137, 42, 0.25);
+}
+.faq-item summary {
+  align-items: center;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font-family: "Tenor Sans", serif;
+  font-size: 0.95rem;
+  justify-content: space-between;
+  letter-spacing: 0.04em;
+  list-style: none;
+  padding: 15px 8px;
+  gap: 20px;
+}
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.faq-item summary::after {
+  color: var(--gd);
+  content: "+";
+  flex: 0 0 auto;
+  font-family: "DM Sans", sans-serif;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.faq-item[open] summary::after {
+  content: "−";
+}
+.faq-item summary:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--g);
+  outline: none;
+}
+.faq-answer {
+  color: #5a4e3a;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  max-width: 880px;
+  padding: 0 48px 16px 8px;
+}
+.gold-divider.faq-divider {
+  height: 1px;
+  margin: 0 auto;
+  opacity: 0.55;
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -1859,7 +2156,8 @@ nav.solid {
 /* CONTACT */
 #contact {
   background: var(--paper);
-  padding: 140px 80px;
+  border-top: 1px solid var(--g);
+  padding: 48px 80px 140px;
   position: relative;
   overflow: hidden;
 }
@@ -2184,9 +2482,16 @@ footer {
   #services,
   #academic,
   #why,
+  #faq,
   #contact,
   #proposito {
     padding: 80px 28px;
+  }
+  #faq {
+    padding: 40px 28px 30px;
+  }
+  #contact {
+    padding-top: 36px;
   }
   .about-grid,
   .why-inner {
@@ -2348,9 +2653,16 @@ footer {
   #services,
   #academic,
   #why,
+  #faq,
   #contact,
   #blog {
     padding: 60px 20px;
+  }
+  #faq {
+    padding: 32px 20px 24px;
+  }
+  #contact {
+    padding-top: 28px;
   }
   .about-photo-frame {
     height: 300px;
@@ -2441,6 +2753,17 @@ footer {
 }
 
 @media (max-width: 480px) {
+  .whatsapp-widget {
+    right: 16px;
+    bottom: 16px;
+  }
+  .whatsapp-widget-toggle {
+    width: 56px;
+    height: 56px;
+  }
+  .whatsapp-panel {
+    width: min(360px, calc(100vw - 32px));
+  }
   nav {
     padding: 0 16px;
     height: 60px;
@@ -2487,6 +2810,12 @@ footer {
   #contact,
   #blog {
     padding: 50px 16px;
+  }
+  #faq {
+    padding: 28px 16px 22px;
+  }
+  #contact {
+    padding-top: 24px;
   }
   .about-grid {
     gap: 40px;

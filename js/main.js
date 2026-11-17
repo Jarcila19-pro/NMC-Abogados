@@ -34,9 +34,63 @@ document
   .querySelectorAll(".reveal,.reveal-left,.reveal-right,.blog-post")
   .forEach((el) => obs.observe(el));
 
+// WHATSAPP WIDGET
+const whatsappWidget = document.getElementById("whatsapp-widget");
+if (whatsappWidget) {
+  const toggleButton = whatsappWidget.querySelector(".whatsapp-widget-toggle");
+  const panel = whatsappWidget.querySelector(".whatsapp-panel");
+  const closeButton = whatsappWidget.querySelector(".whatsapp-panel-close");
+  const chatLink = whatsappWidget.querySelector(".whatsapp-panel-link");
+  const whatsappMessage = "Hola, quisiera agendar una consulta.";
+
+  whatsappWidget.insertBefore(toggleButton, panel);
+  chatLink.href = `https://wa.me/573146153979?${new URLSearchParams({
+    text: whatsappMessage,
+  }).toString()}`;
+
+  function setWhatsAppWidgetOpen(isOpen, restoreFocus = false) {
+    whatsappWidget.classList.toggle("is-open", isOpen);
+    toggleButton.setAttribute("aria-expanded", String(isOpen));
+    toggleButton.setAttribute(
+      "aria-label",
+      isOpen ? "Cerrar chat de WhatsApp" : "Abrir chat de WhatsApp",
+    );
+    panel.setAttribute("aria-hidden", String(!isOpen));
+
+    if (!isOpen && restoreFocus) {
+      toggleButton.focus();
+    }
+  }
+
+  toggleButton.addEventListener("click", () => {
+    setWhatsAppWidgetOpen(toggleButton.getAttribute("aria-expanded") !== "true");
+  });
+  closeButton.addEventListener("click", () => {
+    setWhatsAppWidgetOpen(false, true);
+  });
+  document.addEventListener("click", (event) => {
+    if (
+      toggleButton.getAttribute("aria-expanded") === "true" &&
+      !whatsappWidget.contains(event.target)
+    ) {
+      setWhatsAppWidgetOpen(false);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key === "Escape" &&
+      toggleButton.getAttribute("aria-expanded") === "true"
+    ) {
+      setWhatsAppWidgetOpen(false, true);
+    }
+  });
+}
+
 // SMOOTH ANCHORS
 document.querySelectorAll('a[href^="#"]').forEach((a) => {
   a.addEventListener("click", (e) => {
+    // El enlace de salto debe conservar el comportamiento nativo para mover el foco.
+    if (a.classList.contains("skip-link")) return;
     const href = a.getAttribute("href");
     // Ignorar anclas vacías ("#") — querySelector("#") lanzaría un error
     if (!href || href.length < 2) return;
@@ -294,3 +348,107 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 });
+
+// CONTACT FORM — opens WhatsApp without storing or submitting the details.
+const contactForm = document.getElementById("cf-whatsapp-form");
+if (contactForm) {
+  const formStatus = contactForm.querySelector("#cf-form-status");
+  const nameInput = contactForm.querySelector("#cf-nombre");
+  const phoneInput = contactForm.querySelector("#cf-telefono");
+  const emailInput = contactForm.querySelector("#cf-email");
+  const messageInput = contactForm.querySelector("#cf-mensaje");
+
+  function showWhatsAppFallback(message, whatsappUrl) {
+    formStatus.replaceChildren(document.createTextNode(message));
+    const whatsappLink = document.createElement("a");
+    whatsappLink.href = whatsappUrl;
+    whatsappLink.target = "_blank";
+    whatsappLink.rel = "noopener noreferrer";
+    whatsappLink.textContent = "Abrir WhatsApp";
+    formStatus.append(whatsappLink);
+    formStatus.focus();
+  }
+
+  contactForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    formStatus.replaceChildren();
+
+    [nameInput, phoneInput, emailInput, messageInput].forEach((field) => {
+      field.setCustomValidity("");
+    });
+
+    const nombre = nameInput.value.trim();
+    const telefono = phoneInput.value.trim();
+    const email = emailInput.value.trim();
+    const mensaje = messageInput.value.trim();
+    const phoneDigits = telefono.replace(/\D/g, "");
+
+    if (!nombre) {
+      nameInput.setCustomValidity("Ingresa tu nombre.");
+    }
+
+    if (
+      !/^\+?[0-9][0-9\s-]*$/.test(telefono) ||
+      phoneDigits.length < 7 ||
+      phoneDigits.length > 15
+    ) {
+      phoneInput.setCustomValidity(
+        "Ingresa un teléfono válido con entre 7 y 15 dígitos.",
+      );
+    }
+
+    if (!email) {
+      emailInput.setCustomValidity("Ingresa tu correo electrónico.");
+    }
+
+    if (!mensaje) {
+      messageInput.setCustomValidity("Escribe un mensaje.");
+    }
+
+    if (!contactForm.reportValidity()) return;
+
+    const text = [
+      `Hola, soy ${nombre}`,
+      `Teléfono: ${telefono}`,
+      `Email: ${email}`,
+      `Mensaje: ${mensaje}`,
+    ].join("\n");
+    const params = new URLSearchParams({ text });
+    const whatsappUrl = `https://wa.me/573146153979?${params.toString()}`;
+    let whatsappWindow;
+
+    try {
+      whatsappWindow = window.open("about:blank", "_blank");
+    } catch {
+      showWhatsAppFallback(
+        "No se pudo abrir una pestaña para WhatsApp. Tus datos siguen en el formulario. Puedes intentarlo de nuevo con este enlace: ",
+        whatsappUrl,
+      );
+      return;
+    }
+
+    if (!whatsappWindow || whatsappWindow.closed) {
+      showWhatsAppFallback(
+        "El navegador bloqueó la ventana de WhatsApp. Tus datos siguen en el formulario. Puedes permitir ventanas emergentes o abrir WhatsApp manualmente: ",
+        whatsappUrl,
+      );
+      return;
+    }
+
+    try {
+      whatsappWindow.opener = null;
+      whatsappWindow.location.href = whatsappUrl;
+    } catch {
+      whatsappWindow.close();
+      showWhatsAppFallback(
+        "No se pudo completar la apertura de WhatsApp. Tus datos siguen en el formulario. Puedes intentarlo de nuevo con este enlace: ",
+        whatsappUrl,
+      );
+      return;
+    }
+
+    formStatus.textContent =
+      "Se abrió una pestaña para WhatsApp. Revisa el mensaje y pulsa «Enviar» dentro de WhatsApp para completar el envío. Tus datos siguen en este formulario.";
+    formStatus.focus();
+  });
+}

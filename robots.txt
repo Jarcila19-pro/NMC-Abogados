@@ -5,9 +5,5 @@
 User-agent: *
 Allow: /
 
-# Solo se bloquean archivos técnicos (no aportan a los buscadores)
-Disallow: /css/
-Disallow: /js/
-
 # Sitemap
 Sitemap: https://nmcabogada.com/sitemap.xml
