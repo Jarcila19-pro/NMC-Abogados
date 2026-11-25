@@ -2,6 +2,7 @@
 auditoria-opencode.json
 documentacion/
 pruebas/salidas/
+js/config-qa.local.js
 *.log
 Thumbs.db
 .DS_Store

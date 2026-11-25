@@ -102,14 +102,6 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   });
 });
 
-// HERO PARALLAX
-const heroImgEl = document.querySelector(".hero-right img");
-window.addEventListener("scroll", () => {
-  if (!reduceMotion && heroImgEl && window.scrollY < window.innerHeight) {
-    heroImgEl.style.transform = `scale(1.06) translateY(${window.scrollY * 0.2}px)`;
-  }
-});
-
 // MAGNETIC BUTTONS
 if (!reduceMotion) {
   document.querySelectorAll(".btn-gold,.nav-cta").forEach((btn) => {
@@ -168,17 +160,30 @@ if (!reduceMotion) {
     }
 
     var svcVisible = false;
+    var particleFrame = null;
     var visObs = new IntersectionObserver(
       function (entries) {
         svcVisible = entries[0].isIntersecting;
+        updateParticleLoop();
       },
       { threshold: 0.05 },
     );
     visObs.observe(section);
 
+    function updateParticleLoop() {
+      if (svcVisible && !reduceMotion && !document.hidden) {
+        if (particleFrame === null) {
+          particleFrame = requestAnimationFrame(animateParticles);
+        }
+      } else if (particleFrame !== null) {
+        cancelAnimationFrame(particleFrame);
+        particleFrame = null;
+      }
+    }
+
     function animateParticles() {
-      requestAnimationFrame(animateParticles);
-      if (!svcVisible || reduceMotion) return;
+      particleFrame = null;
+      if (!svcVisible || reduceMotion || document.hidden) return;
 
       ctx.clearRect(0, 0, W, H);
 
@@ -201,8 +206,10 @@ if (!reduceMotion) {
         ctx.fill();
         ctx.restore();
       }
+      particleFrame = requestAnimationFrame(animateParticles);
     }
-    animateParticles();
+
+    document.addEventListener("visibilitychange", updateParticleLoop);
   }
 
   // 2. Scroll reveal — header + cards stagger
@@ -349,106 +356,294 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// CONTACT FORM — opens WhatsApp without storing or submitting the details.
+// CONTACT FORM — registra la consulta y solo después abre WhatsApp.
 const contactForm = document.getElementById("cf-whatsapp-form");
-if (contactForm) {
-  const formStatus = contactForm.querySelector("#cf-form-status");
-  const nameInput = contactForm.querySelector("#cf-nombre");
-  const phoneInput = contactForm.querySelector("#cf-telefono");
-  const emailInput = contactForm.querySelector("#cf-email");
-  const messageInput = contactForm.querySelector("#cf-mensaje");
+if (contactForm && whatsappWidget) {
+  const formVisibilityObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      whatsappWidget.classList.toggle(
+        "is-form-visible",
+        entry.isIntersecting,
+      );
+    });
+  });
+  formVisibilityObserver.observe(contactForm);
+}
 
-  function showWhatsAppFallback(message, whatsappUrl) {
+if (contactForm) {
+  const config = window.NMC_CONFIG || {};
+  const core = window.NMCFormCore;
+  const registry = window.NMCRegistry;
+  const analytics = window.NMCAnalytics;
+  const formStatus = contactForm.querySelector("#cf-form-status");
+  const submitButton = contactForm.querySelector('button[type="submit"]');
+  const consentInput = contactForm.querySelector("#cf-consent");
+  const honeypot = contactForm.querySelector("#cf-website");
+  const fields = {
+    nombre: contactForm.querySelector("#cf-nombre"),
+    telefono: contactForm.querySelector("#cf-telefono"),
+    email: contactForm.querySelector("#cf-email"),
+    mensaje: contactForm.querySelector("#cf-mensaje"),
+    consentimiento: consentInput,
+  };
+  let submitting = false;
+  let lastSuccess = null;
+  let pendingRequest = null;
+
+  function setStatus(message, link) {
     formStatus.replaceChildren(document.createTextNode(message));
-    const whatsappLink = document.createElement("a");
-    whatsappLink.href = whatsappUrl;
-    whatsappLink.target = "_blank";
-    whatsappLink.rel = "noopener noreferrer";
-    whatsappLink.textContent = "Abrir WhatsApp";
-    formStatus.append(whatsappLink);
+    if (link) {
+      const anchor = document.createElement("a");
+      anchor.href = link.url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.textContent = link.label;
+      formStatus.append(document.createTextNode(" "), anchor);
+    }
     formStatus.focus();
   }
 
-  contactForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    formStatus.replaceChildren();
-
-    [nameInput, phoneInput, emailInput, messageInput].forEach((field) => {
+  function clearErrors() {
+    Object.values(fields).forEach((field) => {
+      if (!field) return;
       field.setCustomValidity("");
+      field.removeAttribute("aria-invalid");
+    });
+  }
+
+  function markInvalid(name, message) {
+    const field = fields[name];
+    if (!field) return;
+    field.setCustomValidity(message || "");
+    field.setAttribute("aria-invalid", message ? "true" : "false");
+  }
+
+  function focusFirstError(errors) {
+    const order = ["nombre", "telefono", "email", "mensaje", "consentimiento"];
+    const name = order.find((key) => errors[key]);
+    if (name && fields[name]) fields[name].focus();
+  }
+
+  function readPendingKey(signature) {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem("nmc_idem") || "null");
+      if (stored && stored.sig === signature && stored.key) return stored.key;
+    } catch {
+      /* almacenamiento no disponible */
+    }
+    return pendingRequest && pendingRequest.signature === signature
+      ? pendingRequest.key
+      : null;
+  }
+
+  function savePendingKey(signature, key) {
+    pendingRequest = { signature, key };
+    try {
+      sessionStorage.setItem("nmc_idem", JSON.stringify({ sig: signature, key }));
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }
+
+  function clearPendingKey() {
+    pendingRequest = null;
+    try {
+      sessionStorage.removeItem("nmc_idem");
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }
+
+  function readRecentSuccess() {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem("nmc_last") || "null");
+      if (stored && stored.sig && stored.id) return stored;
+    } catch {
+      /* almacenamiento no disponible */
+    }
+    return null;
+  }
+
+  function saveRecentSuccess(entry) {
+    try {
+      sessionStorage.setItem("nmc_last", JSON.stringify(entry));
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }
+
+  function openPendingWindow() {
+    let popup = null;
+    try {
+      popup = window.open("about:blank", "_blank");
+    } catch {
+      return null;
+    }
+    if (!popup) return null;
+    try {
+      popup.document.title = "Registrando tu consulta…";
+      popup.document.body.textContent = "Registrando tu consulta…";
+      popup.document.body.style.cssText =
+        "font-family:system-ui,sans-serif;padding:32px;background:#f7f2e8;color:#080608";
+      popup.opener = null;
+    } catch {
+      /* la ventana puede estar restringida */
+    }
+    return popup;
+  }
+
+  function navigatePopup(popup, url) {
+    if (!popup || popup.closed) return false;
+    try {
+      popup.location.replace(url);
+      return true;
+    } catch {
+      try {
+        popup.location.href = url;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  function errorMessage(error) {
+    const code = error && error.code ? error.code : "UNKNOWN";
+    if (code === "NOT_CONFIGURED") {
+      return "El registro de consultas no está disponible en este momento. No se envió ningún dato.";
+    }
+    if (code === "TIMEOUT") {
+      return "El registro tardó demasiado. Tus datos siguen en el formulario; revisa tu conexión y reintenta.";
+    }
+    if (code === "NETWORK") {
+      return "No pudimos conectar con el registro. Tus datos siguen en el formulario; revisa tu conexión y reintenta.";
+    }
+    if (code === "INSECURE_ENDPOINT") {
+      return "La configuración del registro no es segura. No se envió ningún dato.";
+    }
+    return "No pudimos registrar tu consulta. Tus datos siguen en el formulario; reintenta en unos segundos.";
+  }
+
+  Object.values(fields).forEach((field) => {
+    if (!field) return;
+    const eventName = field.type === "checkbox" ? "change" : "input";
+    field.addEventListener(eventName, () => {
+      field.setCustomValidity("");
+      field.removeAttribute("aria-invalid");
+    });
+  });
+
+  contactForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (submitting) return;
+
+    formStatus.replaceChildren();
+    clearErrors();
+
+    if (honeypot && honeypot.value.trim()) {
+      setStatus("No se pudo procesar la solicitud.");
+      return;
+    }
+
+    const values = core.sanitize({
+      nombre: fields.nombre.value,
+      telefono: fields.telefono.value,
+      email: fields.email.value,
+      mensaje: fields.mensaje.value,
+      consentimiento: consentInput.checked,
+    });
+    const validation = core.validate(values, { requireConsent: true });
+
+    Object.keys(validation.errors).forEach((name) => {
+      markInvalid(name, validation.errors[name]);
     });
 
-    const nombre = nameInput.value.trim();
-    const telefono = phoneInput.value.trim();
-    const email = emailInput.value.trim();
-    const mensaje = messageInput.value.trim();
-    const phoneDigits = telefono.replace(/\D/g, "");
-
-    if (!nombre) {
-      nameInput.setCustomValidity("Ingresa tu nombre.");
+    if (!validation.valid) {
+      contactForm.reportValidity();
+      focusFirstError(validation.errors);
+      return;
     }
 
-    if (
-      !/^\+?[0-9][0-9\s-]*$/.test(telefono) ||
-      phoneDigits.length < 7 ||
-      phoneDigits.length > 15
-    ) {
-      phoneInput.setCustomValidity(
-        "Ingresa un teléfono válido con entre 7 y 15 dígitos.",
+    if (!config.consentApproved || !config.consentVersion) {
+      setStatus(
+        "El consentimiento y el registro siguen pendientes de aprobación. No se envió ni registró ningún dato.",
       );
+      return;
     }
 
-    if (!email) {
-      emailInput.setCustomValidity("Ingresa tu correo electrónico.");
+    if (!registry || !registry.isConfigured()) {
+      setStatus(
+        "El registro de consultas no está disponible en este momento. No se envió ningún dato. Inténtalo más tarde o escríbenos por WhatsApp.",
+      );
+      return;
     }
 
-    if (!mensaje) {
-      messageInput.setCustomValidity("Escribe un mensaje.");
+    const signature = core.signature(validation.data);
+    const recent = lastSuccess || readRecentSuccess();
+    if (recent && recent.sig === signature && Date.now() - recent.at < 10 * 60 * 1000) {
+      setStatus(
+        `Ya registramos esta consulta con el identificador ${recent.id}. Revisa WhatsApp o escríbenos si necesitas enviarla de nuevo.`,
+      );
+      return;
     }
 
-    if (!contactForm.reportValidity()) return;
+    const idempotencyKey =
+      readPendingKey(signature) || core.makeIdempotencyKey();
+    savePendingKey(signature, idempotencyKey);
 
-    const text = [
-      `Hola, soy ${nombre}`,
-      `Teléfono: ${telefono}`,
-      `Email: ${email}`,
-      `Mensaje: ${mensaje}`,
-    ].join("\n");
-    const params = new URLSearchParams({ text });
-    const whatsappUrl = `https://wa.me/573146153979?${params.toString()}`;
-    let whatsappWindow;
+    const payload = core.buildPayload(validation.data, {
+      consentVersion: config.consentVersion,
+      utm: analytics ? analytics.getUtm() : {},
+      key: idempotencyKey,
+      website: honeypot ? honeypot.value : "",
+    });
+
+    submitting = true;
+    submitButton.disabled = true;
+    submitButton.textContent = "Registrando…";
+    contactForm.setAttribute("aria-busy", "true");
+    const popup = openPendingWindow();
 
     try {
-      whatsappWindow = window.open("about:blank", "_blank");
-    } catch {
-      showWhatsAppFallback(
-        "No se pudo abrir una pestaña para WhatsApp. Tus datos siguen en el formulario. Puedes intentarlo de nuevo con este enlace: ",
-        whatsappUrl,
-      );
-      return;
-    }
+      const result = await registry.submit(payload);
+      const whatsappUrl = core.buildWhatsAppUrl(config.whatsappNumber);
+      const opened = navigatePopup(popup, whatsappUrl);
 
-    if (!whatsappWindow || whatsappWindow.closed) {
-      showWhatsAppFallback(
-        "El navegador bloqueó la ventana de WhatsApp. Tus datos siguen en el formulario. Puedes permitir ventanas emergentes o abrir WhatsApp manualmente: ",
-        whatsappUrl,
-      );
-      return;
-    }
+      if (analytics) {
+        analytics.trackRegistrationConfirmed(core.makeAnalyticsTransactionId());
+      }
 
-    try {
-      whatsappWindow.opener = null;
-      whatsappWindow.location.href = whatsappUrl;
-    } catch {
-      whatsappWindow.close();
-      showWhatsAppFallback(
-        "No se pudo completar la apertura de WhatsApp. Tus datos siguen en el formulario. Puedes intentarlo de nuevo con este enlace: ",
-        whatsappUrl,
-      );
-      return;
-    }
+      clearPendingKey();
+      lastSuccess = { sig: signature, id: result.id, at: Date.now() };
+      saveRecentSuccess(lastSuccess);
 
-    formStatus.textContent =
-      "Se abrió una pestaña para WhatsApp. Revisa el mensaje y pulsa «Enviar» dentro de WhatsApp para completar el envío. Tus datos siguen en este formulario.";
-    formStatus.focus();
+      if (opened) {
+        setStatus(
+          `Consulta registrada con el identificador ${result.id}. Abrimos WhatsApp en otra pestaña: revisa el mensaje y pulsa «Enviar» para completarlo.`,
+        );
+      } else {
+        setStatus(
+          `Consulta registrada con el identificador ${result.id}. El navegador bloqueó la ventana de WhatsApp; ábrela con este enlace:`,
+          { url: whatsappUrl, label: "Abrir WhatsApp" },
+        );
+      }
+    } catch (error) {
+      if (popup && !popup.closed) {
+        try {
+          popup.close();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (window.console && console.warn) {
+        console.warn("[NMC] Registro no confirmado:", error && error.code);
+      }
+      setStatus(errorMessage(error));
+    } finally {
+      submitting = false;
+      submitButton.disabled = false;
+      submitButton.textContent = "Registrar y continuar en WhatsApp";
+      contactForm.removeAttribute("aria-busy");
+    }
   });
 }
