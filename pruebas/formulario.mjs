@@ -209,14 +209,34 @@ try {
   check("Sin consentimiento el envío se bloquea", !nativeBlocked.valid && nativeBlocked.missing && nativeBlocked.status === "");
   check("El consentimiento está marcado como obligatorio", await browser.evaluate(`document.querySelector("#cf-consent").required`));
 
-  // 2. Consentimiento marcado pero sin versión aprobada: no se envía nada.
-  await prepare({ consentVersion: "", registryEndpoint: `${MOCK}/ok` });
+  // 2. El perfil safe muestra WhatsApp sin enviar los datos del formulario.
+  await prepare({
+    consentApproved: false,
+    consentVersion: "",
+    registryEndpoint: "",
+    allowLocalRegistry: false,
+  });
   await fill();
   const requestsBeforeGate = postRequests;
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const gate = await waitForStatus("pendientes de aprobación");
-  check("Sin texto aprobado no se registra ni se envía", gate.includes("pendientes de aprobación") && gate.includes("No se envió"));
-  check("Sin texto aprobado no se abre WhatsApp", (await browser.evaluate("window.__openedCount")) === 0);
+  const gate = await waitForStatus("El formulario todavía no está disponible");
+  const safeContact = await browser.evaluate(`(() => {
+    const status = document.querySelector("#cf-form-status");
+    const link = status.querySelector("a");
+    return {
+      message: status.textContent,
+      href: link ? link.href : "",
+      label: link ? link.textContent : "",
+      target: link ? link.target : "",
+      rel: link ? link.rel : "",
+      openedCount: window.__openedCount,
+    };
+  })()`);
+  const safeWhatsApp = new URL(safeContact.href);
+  check("El perfil safe informa que el formulario no está disponible y no enviará datos", gate.includes("No se enviarán los datos que ingresaste."));
+  check("La alternativa es un enlace directo a WhatsApp con saludo genérico", safeWhatsApp.origin === "https://wa.me" && safeWhatsApp.pathname === "/573146153979" && safeWhatsApp.searchParams.get("text") === "Hola, quisiera solicitar información." && safeContact.label === "Escribir por WhatsApp" && safeContact.target === "_blank" && safeContact.rel.includes("noopener"));
+  check("El enlace de WhatsApp no contiene datos introducidos", !/QA Ficticia|2025550100|qa@example\.test|MENSAJE FICTICIO/.test(safeContact.href));
+  check("WhatsApp no se abre automáticamente", safeContact.openedCount === 0);
   check("Sin texto aprobado no hay peticiones de registro", postRequests === requestsBeforeGate);
 
   await prepare({
@@ -227,8 +247,8 @@ try {
   await fill();
   const requestsBeforeApproval = postRequests;
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const approvalGate = await waitForStatus("pendientes de aprobación");
-  check("Una versión configurada no basta sin aprobación explícita", approvalGate.includes("No se envió") && postRequests === requestsBeforeApproval);
+  const approvalGate = await waitForStatus("El formulario todavía no está disponible");
+  check("Una versión configurada no basta sin aprobación explícita", approvalGate.includes("No se enviarán los datos que ingresaste.") && postRequests === requestsBeforeApproval);
   check("La aprobación pendiente no abre WhatsApp", (await browser.evaluate("window.__openedCount")) === 0);
 
   // 3. Registro exitoso: apertura de WhatsApp con saludo genérico.
