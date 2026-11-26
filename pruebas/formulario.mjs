@@ -20,7 +20,9 @@ const retryPayloads = [];
 const redirectedRecords = new Map();
 const retryRecords = new Map();
 let areaSubmissionCount = 0;
+const changedRequestPayloads = [];
 let retryCount = 0;
+let changedRequestCount = 0;
 let postRequests = 0;
 
 function check(name, condition, detail = "") {
@@ -28,7 +30,13 @@ function check(name, condition, detail = "") {
 }
 
 const redirectServer = createServer((_req, res) => {
-  const allowed = new URL(_req.url, REDIRECT).pathname === "/allow";
+  const pathname = new URL(_req.url, REDIRECT).pathname;
+  if (pathname === "/unavailable") {
+    res.writeHead(404, { "Content-Type": "text/plain;charset=utf-8" });
+    res.end("not available");
+    return;
+  }
+  const allowed = pathname === "/allow";
   res.writeHead(200, {
     "Content-Type": "application/json;charset=utf-8",
     ...(allowed ? { "Access-Control-Allow-Origin": "*" } : {}),
@@ -113,12 +121,26 @@ const server = createServer(async (req, res) => {
     retryCount += 1;
     if (retryCount === 1) {
       retryRecords.set(payload.claveIdempotencia, "NMC-00000000000000000000000000000003");
-      return json(200, { ok: false, code: "SERVER_ERROR" });
+      // The closed local port simulates a transport failure without a real service.
+      res.writeHead(307, {
+        "Access-Control-Allow-Origin": "*",
+        Location: `${REDIRECT}/unavailable`,
+      });
+      res.end();
+      return;
     }
     return json(200, {
       ok: true,
       id: retryRecords.get(payload.claveIdempotencia),
       duplicado: true,
+    });
+  }
+  if (req.url === "/change-key") {
+    changedRequestPayloads.push(payload);
+    changedRequestCount += 1;
+    return json(200, {
+      ok: true,
+      id: `NMC-${String(changedRequestCount).padStart(32, "0")}`,
     });
   }
   if (req.url === "/wait") {
@@ -334,6 +356,13 @@ try {
   check("El doble clic concurrente produce un solo POST", postRequests === requestsBeforeDoubleClick + 1);
   check("El doble clic se confirma con enlace manual y sin abrir pestañas", doubleClickSuccess.includes("Solicitud registrada") && (await browser.evaluate("window.__openedCount")) === 0 && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
   check("El doble clic envía una sola solicitud", waitPayloads().length === 1);
+  const firstConfirmedKey = waitPayloads()[0]?.payload.claveIdempotencia;
+  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const secondInquiry = await waitForStatus("Solicitud registrada");
+  const secondConfirmedKey = waitPayloads()[1]?.payload.claveIdempotencia;
+  check("Una nueva consulta tras confirmar genera otro POST", postRequests === requestsBeforeDoubleClick + 2 && waitPayloads().length === 2);
+  check("Una nueva consulta tras confirmar usa una clave nueva", !!firstConfirmedKey && !!secondConfirmedKey && firstConfirmedKey !== secondConfirmedKey);
+  check("El nuevo registro ofrece CTA manual sin abrir una pestaña", secondInquiry.includes("Solicitud registrada") && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
 
   // 6. Un rechazo explícito se distingue de un resultado indeterminado.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/reject`, registryTimeoutMs: 2000 });
@@ -442,11 +471,25 @@ try {
   const retryStorage = await browser.evaluate("sessionStorage.getItem('nmc_idem')");
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
   const retrySuccess = await waitForStatus("Solicitud registrada");
-  check("El reintento reutiliza la misma clave tras SERVER_ERROR", retryFailure.includes("No pudimos confirmar") && !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey && retryRecords.size === 1);
+  check("El reintento reutiliza la misma clave tras un fallo de transporte", retryFailure.includes("No pudimos confirmar") && !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey && retryRecords.size === 1);
   check("La huella guardada no contiene datos en claro ni relato", !!retryStorage && !/QA Ficticia|2025550100|qa@example\\.test|RELATO LEGAL PRIVADO/.test(retryStorage) && JSON.parse(retryStorage).sig.startsWith("sha256-"));
   check("WhatsApp se ofrece solo después de resolver el registro", retrySuccess.includes("NMC-00000000000000000000000000000003") && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
 
-  // 15. Navegación por teclado: el selector y el estado siguen accesibles.
+  // 15. Una nueva consulta con datos distintos se permite después de confirmar la anterior.
+  await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/change-key`, registryTimeoutMs: 2000 });
+  await fill();
+  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const firstChangedSuccess = await waitForStatus("Solicitud registrada");
+  const originalChangedKey = changedRequestPayloads[0]?.claveIdempotencia;
+  await fill({ email: "otra@example.test" });
+  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const changedRequestSuccess = await waitForStatus("Solicitud registrada");
+  const updatedChangedKey = changedRequestPayloads[1]?.claveIdempotencia;
+  check("La primera consulta se confirmó antes de cambiar los datos", firstChangedSuccess.includes("Solicitud registrada") && !!originalChangedKey);
+  check("Una consulta nueva confirmada obtiene otra clave idempotente", changedRequestPayloads.length === 2 && !!updatedChangedKey && updatedChangedKey !== originalChangedKey);
+  check("La nueva consulta ofrece CTA manual solo tras su confirmación", changedRequestSuccess.includes("NMC-00000000000000000000000000000002") && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
+
+  // 16. Navegación por teclado: el selector y el estado siguen accesibles.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/ok`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector("#cf-servicio").focus()`);

@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { launchBrowser } from "./cdp.mjs";
 
 const BASE = process.env.NMC_URL || "http://127.0.0.1:8123/";
-const OUT = "pruebas/salidas";
+const OUT = process.env.NMC_OUTPUT_DIR || "pruebas/salidas";
 const results = [];
 const consoleErrors = [];
 const failedRequests = [];
@@ -52,7 +52,7 @@ try {
   await browser.setViewport(1366, 900);
   await browser.goto(BASE);
 
-  check("Título de la página", (await browser.evaluate("document.title")).includes("Natalia Márquez"));
+  check("Título de la página", (await browser.evaluate("document.title")).startsWith("NMC Abogados"));
   check("Una sola etiqueta H1", (await browser.evaluate("document.querySelectorAll('h1').length")) === 1);
   check("Sección FAQ visible", (await browser.evaluate("!!document.querySelector('#faq')")));
   check("Cuatro preguntas frecuentes", (await browser.evaluate("document.querySelectorAll('#faq details').length")) === 4);
@@ -144,6 +144,19 @@ try {
   await browser.screenshot(`${OUT}/movil.png`);
   check("Sin desborde horizontal en móvil", (await browser.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")));
   check("Menú móvil presente", (await browser.evaluate("!!document.querySelector('.hamburger')")));
+  const mobileHero = await browser.evaluate(`(() => {
+    const frame = document.querySelector('.hero-right').getBoundingClientRect();
+    const picture = document.querySelector('.hero-right picture').getBoundingClientRect();
+    const image = document.querySelector('.hero-right img');
+    const imageRect = image.getBoundingClientRect();
+    return {
+      fillsFrame: Math.abs(picture.left - frame.left) < 1 && Math.abs(picture.right - frame.right) < 1 && Math.abs(picture.top - frame.top) < 1,
+      imageFillsPicture: Math.abs(imageRect.left - picture.left) < 1 && Math.abs(imageRect.right - picture.right) < 1 && Math.abs(imageRect.top - picture.top) < 1 && Math.abs(imageRect.bottom - picture.bottom) < 1,
+      aspectRatio: Math.abs(picture.width / picture.height - 0.8) < 0.02,
+      objectFit: getComputedStyle(image).objectFit,
+    };
+  })()`);
+  check("El Hero móvil llena el ancho sin bordes", mobileHero.fillsFrame && mobileHero.imageFillsPicture && mobileHero.aspectRatio && mobileHero.objectFit === "cover", JSON.stringify(mobileHero));
 
   check("Sin excepciones de JavaScript", consoleErrors.length === 0, consoleErrors.join(" | "));
   check("Sin recursos 404", failedRequests.length === 0, failedRequests.join(" | "));
