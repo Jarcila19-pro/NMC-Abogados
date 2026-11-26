@@ -341,7 +341,8 @@ main:focus {
   line-height: 1.4;
 }
 .cf-field input,
-.cf-field textarea {
+.cf-field textarea,
+.cf-field select {
   width: 100%;
   min-width: 0;
   font-family: inherit;
@@ -360,6 +361,9 @@ main:focus {
 .cf-field input {
   min-height: 52px;
 }
+.cf-field select {
+  min-height: 52px;
+}
 .cf-field textarea {
   min-height: 132px;
   max-height: 240px;
@@ -367,13 +371,15 @@ main:focus {
   resize: vertical;
 }
 .cf-field input:focus,
-.cf-field textarea:focus {
+.cf-field textarea:focus,
+.cf-field select:focus {
   border-color: var(--gd);
   background: #fff;
   box-shadow: 0 0 0 3px rgba(184, 137, 42, 0.14);
 }
 .cf-field input[aria-invalid="true"],
-.cf-field textarea[aria-invalid="true"] {
+.cf-field textarea[aria-invalid="true"],
+.cf-field select[aria-invalid="true"] {
   border-color: #a83232;
   box-shadow: 0 0 0 3px rgba(168, 50, 50, 0.1);
 }
@@ -3148,7 +3154,8 @@ footer {
     font-size: clamp(2rem, 6vw, 2.8rem);
   }
   .cf-field input,
-  .cf-field textarea {
+  .cf-field textarea,
+  .cf-field select {
     font-size: 1rem;
     padding: 14px;
   }
@@ -3409,7 +3416,8 @@ footer {
     gap: 8px;
   }
   .cf-field input,
-  .cf-field textarea {
+  .cf-field textarea,
+  .cf-field select {
     font-size: 1rem;
     padding: 14px;
     border-radius: 10px;
@@ -3692,7 +3700,8 @@ footer {
 
 /* Foco visible (teclado) en formulario, enlaces y botones */
 .cf-form-group input:focus-visible,
-.cf-form-group textarea:focus-visible {
+.cf-form-group textarea:focus-visible,
+.cf-form-group select:focus-visible {
   outline: 2px solid var(--g, #b8892a);
   outline-offset: 2px;
   border-color: var(--g, #b8892a);

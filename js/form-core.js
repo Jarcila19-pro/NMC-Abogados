@@ -11,9 +11,8 @@
     telefonoDigitosMin: 7,
     telefonoDigitosMax: 15,
     emailMax: 120,
-    mensajeMin: 1,
-    mensajeMax: 1500,
   };
+  var SERVICIOS = ["Familia", "Civil", "Comercial", "Laboral", "No especificado"];
 
   function stripControl(value) {
     return String(value == null ? "" : value)
@@ -36,17 +35,6 @@
     return String(value || "").replace(/\D/g, "");
   }
 
-  function normalizeMessage(value) {
-    return stripControl(value)
-      .split("\n")
-      .map(function (line) {
-        return line.replace(/[ \t]+$/g, "");
-      })
-      .join("\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  }
-
   function truncate(value, max) {
     var chars = Array.from(String(value || ""));
     return chars.length > max ? chars.slice(0, max).join("") : chars.join("");
@@ -64,8 +52,7 @@
       nombre: truncate(normalizeName(source.nombre), LIMITS.nombreMax),
       telefono: truncate(normalizePhone(source.telefono), 20),
       email: truncate(String(source.email || "").trim().toLowerCase(), LIMITS.emailMax),
-      mensaje: truncate(normalizeMessage(source.mensaje), LIMITS.mensajeMax),
-      servicio: truncate(normalizeName(source.servicio), 60) || "No especificado",
+      servicio: truncate(normalizeName(source.servicio), 60),
       consentimiento: source.consentimiento === true,
     };
   }
@@ -90,8 +77,8 @@
       errors.email = "Ingresa un correo electrónico válido.";
     }
 
-    if (!data.mensaje || Array.from(data.mensaje).length < LIMITS.mensajeMin) {
-      errors.mensaje = "Escribe un mensaje.";
+    if (SERVICIOS.indexOf(data.servicio) === -1) {
+      errors.servicio = "Selecciona un área de consulta válida.";
     }
 
     if (opts.requireConsent !== false && data.consentimiento !== true) {
@@ -105,15 +92,66 @@
     };
   }
 
-  function signature(values) {
-    var data = sanitize(values);
-    var text = [data.nombre, phoneDigits(data.telefono), data.email].join("|");
-    var hash = 2166136261;
-    for (var i = 0; i < text.length; i++) {
-      hash ^= text.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
+  function normalizeAttribution(utm) {
+    var source = String((utm && utm.source) || "").trim().toLowerCase();
+    var medium = String((utm && utm.medium) || "").trim().toLowerCase();
+    var campaign = String((utm && utm.campaign) || "").trim().toLowerCase();
+    return source === "google" && medium === "cpc" && campaign === "search"
+      ? { source: source, medium: medium, campaign: campaign }
+      : {};
+  }
+
+  async function signature(values, meta) {
+    var source = values || {};
+    var data = sanitize({
+      nombre: source.nombre,
+      telefono: source.telefono,
+      email: source.email,
+      servicio: source.servicio,
+      consentimiento: source.consentimiento,
+    });
+    var extra = meta || {};
+    var attribution = normalizeAttribution(extra.utm);
+    var text = JSON.stringify([
+      data.nombre,
+      phoneDigits(data.telefono),
+      data.email,
+      data.servicio,
+      data.consentimiento,
+      String(extra.consentVersion || "").trim(),
+      attribution.source || "",
+      attribution.medium || "",
+      attribution.campaign || "",
+      String(extra.website || "").slice(0, 200),
+    ]);
+
+    if (
+      !global.crypto ||
+      !global.crypto.subtle ||
+      typeof global.TextEncoder !== "function"
+    ) {
+      var error = new Error("No está disponible el cálculo seguro de la solicitud.");
+      error.code = "IDEMPOTENCY_UNAVAILABLE";
+      throw error;
     }
-    return "v1-" + (hash >>> 0).toString(16);
+
+    var digest;
+    try {
+      digest = await global.crypto.subtle.digest(
+        "SHA-256",
+        new global.TextEncoder().encode(text),
+      );
+    } catch {
+      var digestError = new Error("No se pudo calcular la huella segura de la solicitud.");
+      digestError.code = "IDEMPOTENCY_UNAVAILABLE";
+      throw digestError;
+    }
+    return (
+      "sha256-" +
+      Array.from(new Uint8Array(digest), function (byte) {
+        return byte.toString(16).padStart(2, "0");
+      }).join("")
+    );
   }
 
   function makeIdempotencyKey() {
@@ -167,15 +205,7 @@
   function buildPayload(values, meta) {
     var data = sanitize(values);
     var extra = meta || {};
-    var utm = extra.utm || {};
-    var attribution =
-      String(utm.source || "").trim().toLowerCase() === "google" &&
-      String(utm.medium || "").trim().toLowerCase() === "cpc" &&
-      String(utm.campaign || "").trim().toLowerCase() === "search"
-        ? { source: "google", medium: "cpc", campaign: "search" }
-        : {};
-    // El mensaje libre NO se envía al registro: solo viaja a WhatsApp después
-    // de confirmar la fila. Así se evita almacenar detalles del caso.
+    var attribution = normalizeAttribution(extra.utm);
     return {
       nombre: data.nombre,
       telefono: data.telefono,
@@ -196,7 +226,6 @@
     sanitize: sanitize,
     validate: validate,
     phoneDigits: phoneDigits,
-    normalizeMessage: normalizeMessage,
     isValidEmail: isValidEmail,
     signature: signature,
     makeIdempotencyKey: makeIdempotencyKey,
