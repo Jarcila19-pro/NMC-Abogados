@@ -27,6 +27,7 @@ test("acepta solo respuestas con identificador de registro válido", async () =>
   const registry = createRegistry(async (_url, options) => {
     assert.equal(options.credentials, "omit");
     assert.equal(options.headers["Content-Type"], "text/plain;charset=utf-8");
+    assert.equal(options.redirect, "follow");
     return {
       ok: true,
       async text() {
@@ -49,7 +50,7 @@ test("rechaza HTTP local por defecto fuera del harness de pruebas", async () => 
   await assert.rejects(registry.submit({}), (error) => error.code === "INSECURE_ENDPOINT");
 });
 
-test("rechaza JSON inválido y un ID no reconocido", async () => {
+test("trata JSON inválido y un ID no reconocido como resultado incierto", async () => {
   for (const body of ["<html>no</html>", JSON.stringify({ ok: true, id: "NMC-TEST" })]) {
     const registry = createRegistry(async () => ({
       ok: true,
@@ -57,8 +58,48 @@ test("rechaza JSON inválido y un ID no reconocido", async () => {
         return body;
       },
     }));
-    await assert.rejects(registry.submit({}), /respuesta ilegible|registro rechazó/);
+    await assert.rejects(
+      registry.submit({}),
+      (error) => error.outcome === "uncertain" &&
+        ["INVALID_RESPONSE", "REJECTED"].includes(error.code),
+    );
   }
+});
+
+test("distingue un rechazo explícito de un error posterior al registro", async () => {
+  const responses = [
+    { body: { ok: false, code: "VALIDATION" }, outcome: "rejected" },
+    { body: { ok: false, code: "SERVER_ERROR" }, outcome: "uncertain" },
+  ];
+
+  for (const { body, outcome } of responses) {
+    const registry = createRegistry(async () => ({
+      ok: true,
+      async text() {
+        return JSON.stringify(body);
+      },
+    }));
+    await assert.rejects(
+      registry.submit({}),
+      (error) => error.outcome === outcome,
+    );
+  }
+});
+
+test("un fallo de red y una respuesta HTTP no exitosa son resultados inciertos", async () => {
+  const networkRegistry = createRegistry(async () => {
+    throw new TypeError("Failed to fetch");
+  });
+  await assert.rejects(
+    networkRegistry.submit({}),
+    (error) => error.code === "NETWORK" && error.outcome === "uncertain",
+  );
+
+  const httpRegistry = createRegistry(async () => ({ ok: false, status: 500 }));
+  await assert.rejects(
+    httpRegistry.submit({}),
+    (error) => error.code === "HTTP_ERROR" && error.outcome === "uncertain",
+  );
 });
 
 test("el timeout cubre también la lectura del cuerpo", async () => {
@@ -78,9 +119,9 @@ test("el timeout cubre también la lectura del cuerpo", async () => {
   const outcome = await Promise.race([
     registry.submit({}).then(
       () => "unexpected-success",
-      (error) => error.code,
+      (error) => ({ code: error.code, outcome: error.outcome }),
     ),
     new Promise((resolve) => setTimeout(() => resolve("still-pending"), 150)),
   ]);
-  assert.equal(outcome, "TIMEOUT");
+  assert.deepEqual(outcome, { code: "TIMEOUT", outcome: "uncertain" });
 });

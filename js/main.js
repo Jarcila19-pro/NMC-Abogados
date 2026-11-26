@@ -356,7 +356,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// CONTACT FORM — registra la consulta y solo después abre WhatsApp.
+// CONTACT FORM — registra la consulta y solo después ofrece WhatsApp.
 const contactForm = document.getElementById("cf-whatsapp-form");
 if (contactForm && whatsappWidget) {
   const formVisibilityObserver = new IntersectionObserver((entries) => {
@@ -383,7 +383,7 @@ if (contactForm) {
     nombre: contactForm.querySelector("#cf-nombre"),
     telefono: contactForm.querySelector("#cf-telefono"),
     email: contactForm.querySelector("#cf-email"),
-    mensaje: contactForm.querySelector("#cf-mensaje"),
+    servicio: contactForm.querySelector("#cf-servicio"),
     consentimiento: consentInput,
   };
   let submitting = false;
@@ -418,99 +418,126 @@ if (contactForm) {
   }
 
   function focusFirstError(errors) {
-    const order = ["nombre", "telefono", "email", "mensaje", "consentimiento"];
+    const order = ["nombre", "telefono", "email", "servicio", "consentimiento"];
     const name = order.find((key) => errors[key]);
     if (name && fields[name]) fields[name].focus();
   }
 
   function readPendingKey(signature) {
+    let serialized;
     try {
-      const stored = JSON.parse(sessionStorage.getItem("nmc_idem") || "null");
-      if (stored && stored.sig === signature && stored.key) return stored.key;
-    } catch {
-      /* almacenamiento no disponible */
+      serialized = sessionStorage.getItem("nmc_idem");
+    } catch (error) {
+      const storageError = new Error("No se pudo comprobar el estado de la solicitud.");
+      storageError.code = "IDEMPOTENCY_UNAVAILABLE";
+      throw storageError;
     }
-    return pendingRequest && pendingRequest.signature === signature
-      ? pendingRequest.key
-      : null;
+
+    if (serialized) {
+      let stored;
+      try {
+        stored = JSON.parse(serialized);
+      } catch (error) {
+        const storageError = new Error("El estado de reintento guardado no es válido.");
+        storageError.code = "PENDING_REQUEST";
+        storageError.outcome = "uncertain";
+        throw storageError;
+      }
+      if (
+        !stored ||
+        typeof stored.sig !== "string" ||
+        typeof stored.key !== "string" ||
+        !stored.key
+      ) {
+        const storageError = new Error("El estado de reintento guardado no es válido.");
+        storageError.code = "PENDING_REQUEST";
+        storageError.outcome = "uncertain";
+        throw storageError;
+      }
+      if (stored.sig !== signature) {
+        const pendingError = new Error("Restaura los datos del intento pendiente antes de reintentar.");
+        pendingError.code = "PENDING_REQUEST";
+        pendingError.outcome = "uncertain";
+        throw pendingError;
+      }
+      pendingRequest = stored;
+      return stored.key;
+    }
+
+    if (pendingRequest) {
+      if (pendingRequest.signature !== signature) {
+        const pendingError = new Error("Restaura los datos del intento pendiente antes de reintentar.");
+        pendingError.code = "PENDING_REQUEST";
+        pendingError.outcome = "uncertain";
+        throw pendingError;
+      }
+      return pendingRequest.key;
+    }
+    return null;
   }
 
   function savePendingKey(signature, key) {
-    pendingRequest = { signature, key };
+    const stored = { sig: signature, key };
     try {
-      sessionStorage.setItem("nmc_idem", JSON.stringify({ sig: signature, key }));
-    } catch {
-      /* almacenamiento no disponible */
+      sessionStorage.setItem("nmc_idem", JSON.stringify(stored));
+      const verified = JSON.parse(sessionStorage.getItem("nmc_idem") || "null");
+      if (!verified || verified.sig !== signature || verified.key !== key) {
+        throw new Error("No se pudo verificar el estado guardado.");
+      }
+    } catch (error) {
+      const storageError = new Error("No se pudo guardar una clave segura para reintentar.");
+      storageError.code = "IDEMPOTENCY_UNAVAILABLE";
+      throw storageError;
     }
+    pendingRequest = { signature, key };
   }
 
   function clearPendingKey() {
     pendingRequest = null;
     try {
       sessionStorage.removeItem("nmc_idem");
-    } catch {
-      /* almacenamiento no disponible */
-    }
-  }
-
-  function openPendingWindow() {
-    let popup = null;
-    try {
-      popup = window.open("about:blank", "_blank");
-    } catch {
-      return null;
-    }
-    if (!popup) return null;
-    try {
-      popup.document.title = "Registrando tu consulta…";
-      popup.document.body.textContent = "Registrando tu consulta…";
-      popup.document.body.style.cssText =
-        "font-family:system-ui,sans-serif;padding:32px;background:#f7f2e8;color:#080608";
-      popup.opener = null;
-    } catch {
-      /* la ventana puede estar restringida */
-    }
-    return popup;
-  }
-
-  function navigatePopup(popup, url) {
-    if (!popup || popup.closed) return false;
-    try {
-      popup.location.replace(url);
       return true;
-    } catch {
-      try {
-        popup.location.href = url;
-        return true;
-      } catch {
-        return false;
+    } catch (error) {
+      if (window.console && console.warn) {
+        console.warn("[NMC] No se pudo limpiar la clave confirmada:", error && error.name);
       }
+      return false;
     }
   }
 
   function errorMessage(error) {
     const code = error && error.code ? error.code : "UNKNOWN";
+    if (error && error.outcome === "uncertain") {
+      if (code === "PENDING_REQUEST") {
+        return "Hay una solicitud pendiente de confirmación. Restaura los mismos datos y reintenta para evitar duplicados.";
+      }
+      return "No pudimos confirmar el resultado. Conservamos este intento; puedes reintentar sin cambiar los datos.";
+    }
     if (code === "NOT_CONFIGURED") {
       return "El registro de consultas no está disponible en este momento. No se envió ningún dato.";
-    }
-    if (code === "TIMEOUT") {
-      return "El registro tardó demasiado. Tus datos siguen en el formulario; revisa tu conexión y reintenta.";
-    }
-    if (code === "NETWORK") {
-      return "No pudimos conectar con el registro. Tus datos siguen en el formulario; revisa tu conexión y reintenta.";
     }
     if (code === "INSECURE_ENDPOINT") {
       return "La configuración del registro no es segura. No se envió ningún dato.";
     }
     if (code === "IDEMPOTENCY_UNAVAILABLE") {
-      return "No se pudo proteger el reintento de la consulta. No se envió ningún dato; inténtalo en un navegador actualizado.";
+      return "No se pudo proteger la solicitud contra duplicados. No se envió ningún dato; inténtalo más tarde.";
     }
-    return "No pudimos registrar tu consulta. Tus datos siguen en el formulario; reintenta en unos segundos.";
+    if (code === "VALIDATION") {
+      return "El registro no aceptó la solicitud. Revisa los datos e inténtalo nuevamente.";
+    }
+    if (code === "BUSY" || code === "RATE_LIMITED") {
+      return "El registro está ocupado o recibió una solicitud reciente. Espera un momento antes de reintentar.";
+    }
+    if (code === "DISABLED") {
+      return "El registro no está disponible en este momento. No se envió ningún dato.";
+    }
+    return "El registro rechazó la solicitud. Revisa los datos antes de volver a intentarlo.";
   }
 
   Object.values(fields).forEach((field) => {
     if (!field) return;
-    const eventName = field.type === "checkbox" ? "change" : "input";
+    const eventName =
+      field.type === "checkbox" || field.tagName === "SELECT" ? "change" : "input";
     field.addEventListener(eventName, () => {
       field.setCustomValidity("");
       field.removeAttribute("aria-invalid");
@@ -524,7 +551,6 @@ if (contactForm) {
 
     formStatus.replaceChildren();
     clearErrors();
-    let popup = null;
     try {
       if (honeypot && honeypot.value.trim()) {
         setStatus("No se pudo procesar la solicitud.");
@@ -535,7 +561,7 @@ if (contactForm) {
         nombre: fields.nombre.value,
         telefono: fields.telefono.value,
         email: fields.email.value,
-        mensaje: fields.mensaje.value,
+        servicio: fields.servicio.value,
         consentimiento: consentInput.checked,
       });
       const validation = core.validate(values, { requireConsent: true });
@@ -557,18 +583,15 @@ if (contactForm) {
         !registry.isConfigured()
       ) {
         setStatus(
-          "El formulario todavía no está disponible. No se enviarán los datos que ingresaste. Puedes contactarnos directamente por WhatsApp.",
-          {
-            url: core.buildWhatsAppUrl(config.whatsappNumber),
-            label: "Escribir por WhatsApp",
-          },
+          "El registro no está disponible en este momento. No se envió ningún dato.",
         );
         return;
       }
 
       submitButton.disabled = true;
-      submitButton.textContent = "Registrando…";
+      submitButton.textContent = "Enviando…";
       contactForm.setAttribute("aria-busy", "true");
+      setStatus("Enviando tu solicitud de forma segura…");
 
       const requestMeta = {
         consentVersion: config.consentVersion,
@@ -585,34 +608,31 @@ if (contactForm) {
         key: idempotencyKey,
       });
 
-      popup = openPendingWindow();
       const result = await registry.submit(payload);
       const whatsappUrl = core.buildWhatsAppUrl(config.whatsappNumber);
-      const opened = navigatePopup(popup, whatsappUrl);
 
       if (analytics) {
-        analytics.trackRegistrationConfirmed(core.makeAnalyticsTransactionId());
+        try {
+          analytics.trackRegistrationConfirmed(core.makeAnalyticsTransactionId());
+        } catch (error) {
+          if (window.console && console.warn) {
+            console.warn("[NMC] No se pudo registrar el evento de analítica:", error && error.name);
+          }
+        }
       }
 
       clearPendingKey();
-
-      if (opened) {
-        setStatus(
-          `Consulta registrada con el identificador ${result.id}. Abrimos WhatsApp en otra pestaña: revisa el mensaje y pulsa «Enviar» para completarlo.`,
-        );
-      } else {
-        setStatus(
-          `Consulta registrada con el identificador ${result.id}. El navegador bloqueó la ventana de WhatsApp; ábrela con este enlace:`,
-          { url: whatsappUrl, label: "Abrir WhatsApp" },
-        );
-      }
+      setStatus(
+        `Solicitud registrada. Referencia ${result.id}. Puedes continuar por WhatsApp cuando estés listo:`,
+        { url: whatsappUrl, label: "Continuar por WhatsApp" },
+      );
     } catch (error) {
-      if (popup && !popup.closed) {
-        try {
-          popup.close();
-        } catch {
-          /* ignore */
-        }
+      if (
+        error &&
+        error.outcome === "rejected" &&
+        ["BAD_REQUEST", "DISABLED", "VALIDATION", "BUSY", "RATE_LIMITED"].includes(error.code)
+      ) {
+        clearPendingKey();
       }
       if (window.console && console.warn) {
         console.warn("[NMC] Registro no confirmado:", error && error.code);
@@ -621,7 +641,7 @@ if (contactForm) {
     } finally {
       submitting = false;
       submitButton.disabled = false;
-      submitButton.textContent = "Registrar y continuar en WhatsApp";
+      submitButton.textContent = "Enviar solicitud";
       contactForm.removeAttribute("aria-busy");
     }
   });

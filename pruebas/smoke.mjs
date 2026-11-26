@@ -96,9 +96,14 @@ try {
   const form = await browser.evaluate(`(() => {
     const f = document.querySelector('#cf-whatsapp-form');
     return {
-      userFields: ['#cf-nombre', '#cf-telefono', '#cf-email', '#cf-mensaje']
+      contactFields: ['#cf-nombre', '#cf-telefono', '#cf-email']
         .map((selector) => f.querySelector(selector))
         .filter((el) => el && el.maxLength > 0).length,
+      serviceSelectorPresent: !!f.querySelector('#cf-servicio'),
+      serviceOptions: Array.from(
+        f.querySelectorAll('#cf-servicio option'),
+        (option) => [option.textContent.trim(), option.value],
+      ),
       consentRequired: f.querySelector('#cf-consent').required,
       honeypotPresent: !!f.querySelector('#cf-website'),
       registryOff: !window.NMC_CONFIG.consentApproved && !window.NMC_CONFIG.registryEndpoint,
@@ -107,7 +112,15 @@ try {
       status: !!f.querySelector('#cf-form-status')
     };
   })()`);
-  check("Formulario limita los cuatro campos y requiere consentimiento", form.userFields === 4 && form.consentRequired && form.honeypotPresent);
+  check("Formulario limita tres campos de contacto y requiere consentimiento", form.contactFields === 3 && form.consentRequired && form.honeypotPresent);
+  check("Selector de área presenta las opciones esperadas", form.serviceSelectorPresent && JSON.stringify(form.serviceOptions) === JSON.stringify([
+    ["Selecciona un área de consulta", ""],
+    ["Familia", "Familia"],
+    ["Civil", "Civil"],
+    ["Comercial", "Comercial"],
+    ["Laboral y Seguridad Social", "Laboral"],
+    ["Otra consulta", "No especificado"],
+  ]));
   check("El botón informa que primero registra la consulta", form.button === "Registrar y continuar en WhatsApp");
   check("Registro y analítica siguen desactivados por defecto", form.registryOff && form.analyticsOff);
   check("Estado accesible del formulario", form.status);

@@ -11,9 +11,8 @@
     telefonoDigitosMin: 7,
     telefonoDigitosMax: 15,
     emailMax: 120,
-    mensajeMin: 1,
-    mensajeMax: 1500,
   };
+  var SERVICIOS = ["Familia", "Civil", "Comercial", "Laboral", "No especificado"];
 
   function stripControl(value) {
     return String(value == null ? "" : value)
@@ -36,17 +35,6 @@
     return String(value || "").replace(/\D/g, "");
   }
 
-  function normalizeMessage(value) {
-    return stripControl(value)
-      .split("\n")
-      .map(function (line) {
-        return line.replace(/[ \t]+$/g, "");
-      })
-      .join("\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  }
-
   function truncate(value, max) {
     var chars = Array.from(String(value || ""));
     return chars.length > max ? chars.slice(0, max).join("") : chars.join("");
@@ -64,8 +52,7 @@
       nombre: truncate(normalizeName(source.nombre), LIMITS.nombreMax),
       telefono: truncate(normalizePhone(source.telefono), 20),
       email: truncate(String(source.email || "").trim().toLowerCase(), LIMITS.emailMax),
-      mensaje: truncate(normalizeMessage(source.mensaje), LIMITS.mensajeMax),
-      servicio: truncate(normalizeName(source.servicio), 60) || "No especificado",
+      servicio: truncate(normalizeName(source.servicio), 60),
       consentimiento: source.consentimiento === true,
     };
   }
@@ -90,8 +77,8 @@
       errors.email = "Ingresa un correo electrónico válido.";
     }
 
-    if (!data.mensaje || Array.from(data.mensaje).length < LIMITS.mensajeMin) {
-      errors.mensaje = "Escribe un mensaje.";
+    if (SERVICIOS.indexOf(data.servicio) === -1) {
+      errors.servicio = "Selecciona un área de consulta válida.";
     }
 
     if (opts.requireConsent !== false && data.consentimiento !== true) {
@@ -219,8 +206,6 @@
     var data = sanitize(values);
     var extra = meta || {};
     var attribution = normalizeAttribution(extra.utm);
-    // El mensaje libre NO se envía al registro: solo viaja a WhatsApp después
-    // de confirmar la fila. Así se evita almacenar detalles del caso.
     return {
       nombre: data.nombre,
       telefono: data.telefono,
@@ -241,7 +226,6 @@
     sanitize: sanitize,
     validate: validate,
     phoneDigits: phoneDigits,
-    normalizeMessage: normalizeMessage,
     isValidEmail: isValidEmail,
     signature: signature,
     makeIdempotencyKey: makeIdempotencyKey,

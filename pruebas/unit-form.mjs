@@ -22,18 +22,18 @@ const base = {
   nombre: "  Ana   María  ",
   telefono: "202-555-0100",
   email: "  ANA@Example.COM ",
-  mensaje: "Hola,\r\n\r\n\r\nnecesito   asesoría.   ",
+  servicio: "Civil",
   consentimiento: true,
 };
 
-test("sanitiza nombre, email, teléfono y mensaje", () => {
-  const data = core.sanitize(base);
+test("sanitiza los datos de contacto y omite cualquier mensaje libre", () => {
+  const data = core.sanitize({ ...base, mensaje: "RELATO LEGAL PRIVADO" });
   assert.equal(data.nombre, "Ana María");
   assert.equal(data.email, "ana@example.com");
   assert.equal(data.telefono, "202-555-0100");
-  assert.equal(data.mensaje, "Hola,\n\nnecesito   asesoría.");
-  assert.equal(data.servicio, "No especificado");
+  assert.equal(data.servicio, "Civil");
   assert.equal(data.consentimiento, true);
+  assert.ok(!Object.hasOwn(data, "mensaje"));
 });
 
 test("rechaza campos vacíos", () => {
@@ -42,7 +42,7 @@ test("rechaza campos vacíos", () => {
   assert.ok(result.errors.nombre);
   assert.ok(result.errors.telefono);
   assert.ok(result.errors.email);
-  assert.ok(result.errors.mensaje);
+  assert.ok(result.errors.servicio);
   assert.ok(result.errors.consentimiento);
 });
 
@@ -75,30 +75,48 @@ test("exige consentimiento explícito", () => {
   assert.equal(withConsent.valid, true);
 });
 
-test("acepta caracteres especiales y acentos", () => {
+test("acepta caracteres especiales en el nombre y un área permitida", () => {
   const result = core.validate({
     ...base,
     nombre: "José Núñez-Peña",
-    mensaje: "¿Qué pasa con «mi caso»? — 50 % + $1.000 & <b>no</b>.",
+    servicio: "Laboral",
   });
   assert.equal(result.valid, true);
   assert.equal(result.data.nombre, "José Núñez-Peña");
+  assert.equal(result.data.servicio, "Laboral");
 });
 
-test("limita nombre y mensaje a sus máximos", () => {
+test("limita el nombre a su máximo", () => {
   const result = core.validate({
     ...base,
     nombre: "a".repeat(200),
-    mensaje: "m".repeat(3000),
   });
   assert.equal(result.data.nombre.length, core.LIMITS.nombreMax);
-  assert.equal(Array.from(result.data.mensaje).length, core.LIMITS.mensajeMax);
   assert.equal(result.valid, true);
 });
 
-test("elimina caracteres de control", () => {
-  const data = core.sanitize({ ...base, mensaje: "Hola\u0000\u0007 mundo\u001F" });
-  assert.equal(data.mensaje, "Hola mundo");
+test("rechaza valores de área que el backend no permite", () => {
+  for (const servicio of ["", "Laboral y Seguridad Social", "Otra consulta", "Legal"]) {
+    const result = core.validate({ ...base, servicio });
+    assert.equal(result.valid, false, servicio);
+    assert.ok(result.errors.servicio);
+  }
+});
+
+test("mapea las cinco etiquetas del selector a valores del contrato", () => {
+  const mappings = [
+    ["Familia", "Familia"],
+    ["Civil", "Civil"],
+    ["Comercial", "Comercial"],
+    ["Laboral y Seguridad Social", "Laboral"],
+    ["Otra consulta", "No especificado"],
+  ];
+
+  for (const [_label, servicio] of mappings) {
+    const result = core.validate({ ...base, servicio });
+    assert.equal(result.valid, true, servicio);
+    assert.equal(core.buildPayload(result.data).servicio, servicio);
+  }
 });
 
 test("huella SHA-256 identifica los datos enviados y excluye el mensaje libre", async () => {
@@ -112,9 +130,9 @@ test("huella SHA-256 identifica los datos enviados y excluye el mensaje libre", 
     meta,
   );
   assert.equal(a, b);
-  assert.equal(a, await core.signature({ ...base, mensaje: "Otro mensaje" }, meta));
+  assert.equal(a, await core.signature({ ...base, mensaje: "RELATO LEGAL PRIVADO" }, meta));
   assert.notEqual(a, await core.signature({ ...base, telefono: "3001112233" }, meta));
-  assert.notEqual(a, await core.signature({ ...base, servicio: "Civil" }, meta));
+  assert.notEqual(a, await core.signature({ ...base, servicio: "Familia" }, meta));
   assert.notEqual(a, await core.signature(base, { ...meta, consentVersion: "v2" }));
   assert.notEqual(a, await core.signature(base, { ...meta, utm: {} }));
   assert.match(a, /^sha256-[a-f0-9]{64}$/);
@@ -168,15 +186,15 @@ test("URL de WhatsApp contiene solo un saludo genérico", () => {
     base.nombre.trim(),
     "202-555-0100",
     "ana@example.com",
-    base.mensaje.trim(),
+    "RELATO LEGAL PRIVADO",
     "NMC-2026-0001",
   ]) {
     assert.ok(!text.includes(value), `WhatsApp no debe prellenar ${value}`);
   }
 });
 
-test("el payload minimiza datos y conserva solo atribución operativa", () => {
-  const payload = core.buildPayload(base, {
+test("el payload omite cualquier mensaje libre y conserva solo atribución operativa", () => {
+  const payload = core.buildPayload({ ...base, mensaje: "RELATO LEGAL PRIVADO" }, {
     consentVersion: "v1",
     idioma: "es-CO",
     utm: { source: "google", medium: "cpc", campaign: "search", gclid: "abc" },
@@ -212,7 +230,7 @@ test("el payload neutraliza atribución inesperada, maliciosa o vacía", () => {
 });
 
 test("incluye el honeypot en el payload sin incluir el mensaje libre", () => {
-  const payload = core.buildPayload(base, {
+  const payload = core.buildPayload({ ...base, mensaje: "RELATO LEGAL PRIVADO" }, {
     key: "nmc-1",
     website: "bot-filled",
   });

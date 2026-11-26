@@ -105,7 +105,11 @@ function doPost(e) {
         'Versión de consentimiento': safeText_(text_(payload.consentVersion, LIMITS.consentVersionMax))
       });
       SpreadsheetApp.flush();
-      cache.put(rateKey, id, RATE_LIMIT_SECONDS);
+      try {
+        cache.put(rateKey, id, RATE_LIMIT_SECONDS);
+      } catch (cacheError) {
+        logError_('No se pudo actualizar el limite de solicitudes', cacheError);
+      }
 
       if (settings.notifyEmail) {
         try {

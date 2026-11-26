@@ -734,8 +734,15 @@
               <input type="email" id="cf-email" name="email" autocomplete="email" maxlength="120" required />
             </div>
             <div class="cf-form-group cf-field cf-field-message cf-field-full">
-              <label class="cf-field-label" for="cf-mensaje">¿En qué podemos ayudarte?</label>
-              <textarea id="cf-mensaje" name="mensaje" maxlength="1500" required></textarea>
+              <label class="cf-field-label" for="cf-servicio">¿En qué podemos ayudarte?</label>
+              <select id="cf-servicio" name="servicio" required>
+                <option value="" selected disabled>Selecciona un área de consulta</option>
+                <option value="Familia">Familia</option>
+                <option value="Civil">Civil</option>
+                <option value="Comercial">Comercial</option>
+                <option value="Laboral">Laboral y Seguridad Social</option>
+                <option value="No especificado">Otra consulta</option>
+              </select>
             </div>
             <details class="cf-form-warning" id="cf-privacy-warning">
               <summary>Por tu seguridad, no incluyas información sensible o confidencial.</summary>
