@@ -387,7 +387,6 @@ if (contactForm) {
     consentimiento: consentInput,
   };
   let submitting = false;
-  let lastSuccess = null;
   let pendingRequest = null;
 
   function setStatus(message, link) {
@@ -454,24 +453,6 @@ if (contactForm) {
     }
   }
 
-  function readRecentSuccess() {
-    try {
-      const stored = JSON.parse(sessionStorage.getItem("nmc_last") || "null");
-      if (stored && stored.sig && stored.id) return stored;
-    } catch {
-      /* almacenamiento no disponible */
-    }
-    return null;
-  }
-
-  function saveRecentSuccess(entry) {
-    try {
-      sessionStorage.setItem("nmc_last", JSON.stringify(entry));
-    } catch {
-      /* almacenamiento no disponible */
-    }
-  }
-
   function openPendingWindow() {
     let popup = null;
     try {
@@ -521,6 +502,9 @@ if (contactForm) {
     if (code === "INSECURE_ENDPOINT") {
       return "La configuración del registro no es segura. No se envió ningún dato.";
     }
+    if (code === "IDEMPOTENCY_UNAVAILABLE") {
+      return "No se pudo proteger el reintento de la consulta. No se envió ningún dato; inténtalo en un navegador actualizado.";
+    }
     return "No pudimos registrar tu consulta. Tus datos siguen en el formulario; reintenta en unos segundos.";
   }
 
@@ -536,75 +520,70 @@ if (contactForm) {
   contactForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (submitting) return;
+    submitting = true;
 
     formStatus.replaceChildren();
     clearErrors();
-
-    if (honeypot && honeypot.value.trim()) {
-      setStatus("No se pudo procesar la solicitud.");
-      return;
-    }
-
-    const values = core.sanitize({
-      nombre: fields.nombre.value,
-      telefono: fields.telefono.value,
-      email: fields.email.value,
-      mensaje: fields.mensaje.value,
-      consentimiento: consentInput.checked,
-    });
-    const validation = core.validate(values, { requireConsent: true });
-
-    Object.keys(validation.errors).forEach((name) => {
-      markInvalid(name, validation.errors[name]);
-    });
-
-    if (!validation.valid) {
-      contactForm.reportValidity();
-      focusFirstError(validation.errors);
-      return;
-    }
-
-    if (!config.consentApproved || !config.consentVersion) {
-      setStatus(
-        "El consentimiento y el registro siguen pendientes de aprobación. No se envió ni registró ningún dato.",
-      );
-      return;
-    }
-
-    if (!registry || !registry.isConfigured()) {
-      setStatus(
-        "El registro de consultas no está disponible en este momento. No se envió ningún dato. Inténtalo más tarde o escríbenos por WhatsApp.",
-      );
-      return;
-    }
-
-    const signature = core.signature(validation.data);
-    const recent = lastSuccess || readRecentSuccess();
-    if (recent && recent.sig === signature && Date.now() - recent.at < 10 * 60 * 1000) {
-      setStatus(
-        `Ya registramos esta consulta con el identificador ${recent.id}. Revisa WhatsApp o escríbenos si necesitas enviarla de nuevo.`,
-      );
-      return;
-    }
-
-    const idempotencyKey =
-      readPendingKey(signature) || core.makeIdempotencyKey();
-    savePendingKey(signature, idempotencyKey);
-
-    const payload = core.buildPayload(validation.data, {
-      consentVersion: config.consentVersion,
-      utm: analytics ? analytics.getUtm() : {},
-      key: idempotencyKey,
-      website: honeypot ? honeypot.value : "",
-    });
-
-    submitting = true;
-    submitButton.disabled = true;
-    submitButton.textContent = "Registrando…";
-    contactForm.setAttribute("aria-busy", "true");
-    const popup = openPendingWindow();
-
+    let popup = null;
     try {
+      if (honeypot && honeypot.value.trim()) {
+        setStatus("No se pudo procesar la solicitud.");
+        return;
+      }
+
+      const values = core.sanitize({
+        nombre: fields.nombre.value,
+        telefono: fields.telefono.value,
+        email: fields.email.value,
+        mensaje: fields.mensaje.value,
+        consentimiento: consentInput.checked,
+      });
+      const validation = core.validate(values, { requireConsent: true });
+
+      Object.keys(validation.errors).forEach((name) => {
+        markInvalid(name, validation.errors[name]);
+      });
+
+      if (!validation.valid) {
+        contactForm.reportValidity();
+        focusFirstError(validation.errors);
+        return;
+      }
+
+      if (!config.consentApproved || !config.consentVersion) {
+        setStatus(
+          "El consentimiento y el registro siguen pendientes de aprobación. No se envió ni registró ningún dato.",
+        );
+        return;
+      }
+
+      if (!registry || !registry.isConfigured()) {
+        setStatus(
+          "El registro de consultas no está disponible en este momento. No se envió ningún dato. Inténtalo más tarde o escríbenos por WhatsApp.",
+        );
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Registrando…";
+      contactForm.setAttribute("aria-busy", "true");
+
+      const requestMeta = {
+        consentVersion: config.consentVersion,
+        utm: analytics ? analytics.getUtm() : {},
+        website: honeypot ? honeypot.value : "",
+      };
+      const signature = await core.signature(validation.data, requestMeta);
+      const idempotencyKey =
+        readPendingKey(signature) || core.makeIdempotencyKey();
+      savePendingKey(signature, idempotencyKey);
+
+      const payload = core.buildPayload(validation.data, {
+        ...requestMeta,
+        key: idempotencyKey,
+      });
+
+      popup = openPendingWindow();
       const result = await registry.submit(payload);
       const whatsappUrl = core.buildWhatsAppUrl(config.whatsappNumber);
       const opened = navigatePopup(popup, whatsappUrl);
@@ -614,8 +593,6 @@ if (contactForm) {
       }
 
       clearPendingKey();
-      lastSuccess = { sig: signature, id: result.id, at: Date.now() };
-      saveRecentSuccess(lastSuccess);
 
       if (opened) {
         setStatus(

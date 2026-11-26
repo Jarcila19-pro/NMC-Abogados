@@ -3965,8 +3965,15 @@ body > footer {
 
 @media (max-width: 640px) {
   .hero-right picture {
-    width: 94%;
+    width: min(94%, 400px);
+    aspect-ratio: 4 / 5;
     margin: 24px auto 0;
+  }
+
+  .hero-right img {
+    height: 100%;
+    object-fit: cover;
+    object-position: 52% center;
   }
 
   .hero-left {

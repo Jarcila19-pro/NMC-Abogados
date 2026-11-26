@@ -15,7 +15,9 @@ const MOCK_PORT = 8124;
 const MOCK = `http://127.0.0.1:${MOCK_PORT}`;
 const receivedPayloads = [];
 const retryPayloads = [];
+const changedRequestPayloads = [];
 let retryCount = 0;
+let changedRequestCount = 0;
 let postRequests = 0;
 
 function check(name, condition, detail = "") {
@@ -61,8 +63,22 @@ const server = createServer(async (req, res) => {
   if (req.url === "/retry") {
     retryPayloads.push(payload);
     retryCount += 1;
-    if (retryCount === 1) return json(500, { ok: false });
+    if (retryCount === 1) {
+      // The closed local port simulates a transport failure without a real service.
+      res.writeHead(307, {
+        "Access-Control-Allow-Origin": "*",
+        Location: "http://127.0.0.1:8125/unavailable",
+      });
+      res.end();
+      return;
+    }
     return json(200, { ok: true, id: "NMC-00000000000000000000000000000003" });
+  }
+  if (req.url === "/change-key") {
+    changedRequestPayloads.push(payload);
+    changedRequestCount += 1;
+    if (changedRequestCount === 1) return json(500, { ok: false });
+    return json(200, { ok: true, id: "NMC-00000000000000000000000000000006" });
   }
   if (req.url === "/wait") {
     setTimeout(() => json(200, { ok: true, id: "NMC-00000000000000000000000000000005" }), 700);
@@ -96,7 +112,11 @@ page.on("Log.entryAdded", (m) => {
   if (m.params.entry.level !== "error") return;
   const entry = m.params.entry;
   // Los fallos del registro simulado son intencionales en estas pruebas.
-  if (String(entry.url || "").includes(":8124/")) return;
+  if (String(entry.text || "").startsWith("Failed to load resource:")) return;
+  if (
+    String(entry.url || "").includes(":8124/") ||
+    String(entry.text || "").includes(`${MOCK}/retry`)
+  ) return;
   consoleErrors.push(entry.text);
 });
 
@@ -217,9 +237,9 @@ try {
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
   const success = await waitForStatus("Consulta registrada");
   const opened = await browser.evaluate("window.__opened");
-  check("El registro exitoso informa el identificador", success.includes("NMC-00000000000000000000000000000001"));
+  check("El registro exitoso informa el identificador", success.includes("NMC-00000000000000000000000000000001"), success);
   check("WhatsApp se abre solo después del registro", typeof opened === "string" && opened.startsWith("https://wa.me/573146153979?"));
-  const whatsappText = new URL(opened).searchParams.get("text");
+  const whatsappText = typeof opened === "string" ? new URL(opened).searchParams.get("text") : "";
   check("WhatsApp prellena solo el saludo genérico", whatsappText === "Hola, quisiera solicitar información.");
   check("WhatsApp no prellena datos personales ni el relato", !/QA Ficticia|2025550100|qa@example\.test|MENSAJE FICTICIO|NMC-00000000000000000000000000000001/.test(whatsappText));
   check("Se indica pulsar Enviar dentro de WhatsApp", success.includes("pulsa «Enviar»"));
@@ -229,12 +249,28 @@ try {
   const submittedPayload = receivedPayloads.find((entry) => entry.url === "/ok")?.payload;
   check("El registro omite el mensaje libre y envía el honeypot vacío", !!submittedPayload && !Object.hasOwn(submittedPayload, "mensaje") && submittedPayload.website === "" && submittedPayload.consentimiento === true);
 
-  // 4. Doble clic: no se duplica la consulta.
+  // 4. El doble clic concurrente se bloquea, pero una nueva consulta tras éxito usa otra clave.
+  await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/wait`, registryTimeoutMs: 2000 });
+  await fill();
+  const requestsBeforeDoubleClick = postRequests;
+  await browser.evaluate(`(() => {
+    const button = document.querySelector(".cf-btn");
+    button.click();
+    button.click();
+  })()`);
+  const doubleClickSuccess = await waitForStatus("Consulta registrada");
+  const waitPayloads = () => receivedPayloads.filter((entry) => entry.url === "/wait");
+  const firstWaitKey = waitPayloads()[0]?.payload.claveIdempotencia;
+  check("El doble clic concurrente produce un solo POST", postRequests === requestsBeforeDoubleClick + 1);
+  check("El doble clic concurrente abre WhatsApp una sola vez", (await browser.evaluate("window.__openedCount")) === 1);
+  check("La primera consulta se confirma", doubleClickSuccess.includes("Consulta registrada"));
+
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const duplicate = await waitForStatus("Ya registramos esta consulta");
-  check("El doble envío no duplica el registro", duplicate.includes("Ya registramos esta consulta"));
-  check("El doble envío no reabre WhatsApp", (await browser.evaluate("window.__openedCount")) === 1);
-  check("El doble envío no duplica el evento de registro", await eventCount("consulta_registrada") === 1);
+  const secondInquiry = await waitForStatus("Consulta registrada");
+  const secondWaitKey = waitPayloads()[1]?.payload.claveIdempotencia;
+  check("Una nueva consulta del mismo contacto genera otro POST", postRequests === requestsBeforeDoubleClick + 2);
+  check("Una nueva consulta del mismo contacto obtiene clave nueva", !!firstWaitKey && !!secondWaitKey && firstWaitKey !== secondWaitKey);
+  check("La nueva consulta también abre WhatsApp tras confirmación", secondInquiry.includes("Consulta registrada") && (await browser.evaluate("window.__openedCount")) === 2);
 
   // 5. Respuesta del servidor con ok:false.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/reject`, registryTimeoutMs: 2000 });
@@ -321,18 +357,33 @@ try {
   check("Un ID inválido no navega a WhatsApp", await browser.evaluate("window.__opened === null && !!window.__lastPopup && window.__lastPopup.closed === true"));
   check("Un ID inválido no emite consulta registrada", await eventCount("consulta_registrada") === 0);
 
-  // 13. El reintento conserva la clave de idempotencia tras un error HTTP.
+  // 13. Un error de red conserva la clave para reintentar la misma solicitud.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/retry`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const retryFailure = await waitForStatus("No pudimos registrar");
+  const retryFailure = await waitForStatus("No pudimos conectar");
   const firstRetryKey = retryPayloads[0]?.claveIdempotencia;
+  const pendingStorage = await browser.evaluate("sessionStorage.getItem('nmc_idem')");
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
   const retrySuccess = await waitForStatus("Consulta registrada");
-  check("El reintento conserva la misma clave idempotente", !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey);
-  check("El reintento solo habilita WhatsApp tras confirmación", retryFailure.includes("reintenta") && retrySuccess.includes("NMC-00000000000000000000000000000003") && new URL(await browser.evaluate("window.__opened")).searchParams.get("text") === "Hola, quisiera solicitar información.");
+  const retryKeyPreserved = !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey;
+  check("El reintento conserva la misma clave idempotente", retryKeyPreserved, retryKeyPreserved ? "" : `payloads=${retryPayloads.length}`);
+  check("La huella almacenada no contiene el mensaje ni datos en claro", !!pendingStorage && !pendingStorage.includes("MENSAJE FICTICIO") && !pendingStorage.includes("QA Ficticia") && JSON.parse(pendingStorage).sig.startsWith("sha256-"), pendingStorage ? "" : "sin huella pendiente");
+  check("El reintento solo habilita WhatsApp tras confirmación", retryFailure.includes("reintenta") && retrySuccess.includes("NMC-00000000000000000000000000000003") && new URL(await browser.evaluate("window.__opened")).searchParams.get("text") === "Hola, quisiera solicitar información.", `${retryFailure} | ${retrySuccess}`);
 
-  // 14. Una respuesta lenta no abre WhatsApp antes de confirmar el registro.
+  // 14. Cambiar datos relevantes después de un error requiere una clave nueva.
+  await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/change-key`, registryTimeoutMs: 2000 });
+  await fill();
+  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  await waitForStatus("No pudimos registrar");
+  const originalChangedKey = changedRequestPayloads[0]?.claveIdempotencia;
+  await fill({ email: "otra@example.test" });
+  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const changedRequestSuccess = await waitForStatus("Consulta registrada");
+  check("Cambiar datos relevantes genera una clave de idempotencia nueva", !!originalChangedKey && changedRequestPayloads.length === 2 && changedRequestPayloads[1].claveIdempotencia !== originalChangedKey);
+  check("La consulta con datos modificados completa el flujo de éxito", changedRequestSuccess.includes("NMC-00000000000000000000000000000006") && typeof await browser.evaluate("window.__opened") === "string");
+
+  // 15. Una respuesta lenta no abre WhatsApp antes de confirmar el registro.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/wait`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
@@ -342,7 +393,7 @@ try {
   const delayedUrl = await browser.evaluate("window.__opened");
   check("La confirmación válida permite continuar a WhatsApp", delayedSuccess.includes("NMC-00000000000000000000000000000005") && typeof delayedUrl === "string" && delayedUrl.includes("wa.me/573146153979"), `${delayedSuccess} | ${delayedUrl}`);
 
-  // 15. Navegación por teclado: el formulario es alcanzable y el estado recibe foco.
+  // 16. Navegación por teclado: el formulario es alcanzable y el estado recibe foco.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/ok`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector("#cf-consent").focus()`);

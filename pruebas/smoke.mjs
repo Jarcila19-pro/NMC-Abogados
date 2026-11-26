@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { launchBrowser } from "./cdp.mjs";
 
 const BASE = process.env.NMC_URL || "http://127.0.0.1:8123/";
-const OUT = "pruebas/salidas";
+const OUT = process.env.NMC_OUTPUT_DIR || "pruebas/salidas";
 const results = [];
 const consoleErrors = [];
 const failedRequests = [];
@@ -52,7 +52,7 @@ try {
   await browser.setViewport(1366, 900);
   await browser.goto(BASE);
 
-  check("Título de la página", (await browser.evaluate("document.title")).includes("Natalia Márquez"));
+  check("Título de la página", (await browser.evaluate("document.title")).startsWith("NMC Abogados"));
   check("Una sola etiqueta H1", (await browser.evaluate("document.querySelectorAll('h1').length")) === 1);
   check("Sección FAQ visible", (await browser.evaluate("!!document.querySelector('#faq')")));
   check("Cuatro preguntas frecuentes", (await browser.evaluate("document.querySelectorAll('#faq details').length")) === 4);
@@ -96,14 +96,20 @@ try {
   const form = await browser.evaluate(`(() => {
     const f = document.querySelector('#cf-whatsapp-form');
     return {
-      fields: f.querySelectorAll('input,textarea').length,
-      maxlengths: [...f.querySelectorAll('input,textarea')].every((el) => el.maxLength > 0),
+      userFields: ['#cf-nombre', '#cf-telefono', '#cf-email', '#cf-mensaje']
+        .map((selector) => f.querySelector(selector))
+        .filter((el) => el && el.maxLength > 0).length,
+      consentRequired: f.querySelector('#cf-consent').required,
+      honeypotPresent: !!f.querySelector('#cf-website'),
+      registryOff: !window.NMC_CONFIG.consentApproved && !window.NMC_CONFIG.registryEndpoint,
+      analyticsOff: !window.NMCAnalytics.isEnabled(),
       button: f.querySelector('.cf-btn').textContent.trim(),
       status: !!f.querySelector('#cf-form-status')
     };
   })()`);
-  check("Formulario con cuatro campos y límites", form.fields === 4 && form.maxlengths);
-  check("Mensaje del botón es honesto", form.button === "Continuar en WhatsApp");
+  check("Formulario limita los cuatro campos y requiere consentimiento", form.userFields === 4 && form.consentRequired && form.honeypotPresent);
+  check("El botón informa que primero registra la consulta", form.button === "Registrar y continuar en WhatsApp");
+  check("Registro y analítica siguen desactivados por defecto", form.registryOff && form.analyticsOff);
   check("Estado accesible del formulario", form.status);
 
   await browser.evaluate(REVEAL_ALL);

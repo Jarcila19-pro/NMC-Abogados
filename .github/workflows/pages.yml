@@ -39,8 +39,18 @@ jobs:
           node-version: 20
       - name: Run local unit tests
         run: node --test pruebas/unit-*.mjs
-      - name: Build and verify public allowlist
-        run: node scripts/build-public-site.mjs --out "$RUNNER_TEMP/nmc-public-site"
+      - name: Build and verify safe profile
+        if: github.event_name == 'pull_request'
+        run: node scripts/build-public-site.mjs --profile safe --out "$RUNNER_TEMP/nmc-public-site"
+      - name: Build and verify production profile
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          github.ref == 'refs/heads/main' &&
+          inputs.confirm_publication
+        env:
+          # Set this repository variable only after production deployment; use its /exec URL, never QA.
+          NMC_REGISTRY_ENDPOINT: ${{ vars.NMC_PRODUCTION_REGISTRY_ENDPOINT }}
+        run: node scripts/build-public-site.mjs --profile production --out "$RUNNER_TEMP/nmc-public-site"
       - name: Configure Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
