@@ -105,15 +105,66 @@
     };
   }
 
-  function signature(values) {
-    var data = sanitize(values);
-    var text = [data.nombre, phoneDigits(data.telefono), data.email].join("|");
-    var hash = 2166136261;
-    for (var i = 0; i < text.length; i++) {
-      hash ^= text.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
+  function normalizeAttribution(utm) {
+    var source = String((utm && utm.source) || "").trim().toLowerCase();
+    var medium = String((utm && utm.medium) || "").trim().toLowerCase();
+    var campaign = String((utm && utm.campaign) || "").trim().toLowerCase();
+    return source === "google" && medium === "cpc" && campaign === "search"
+      ? { source: source, medium: medium, campaign: campaign }
+      : {};
+  }
+
+  async function signature(values, meta) {
+    var source = values || {};
+    var data = sanitize({
+      nombre: source.nombre,
+      telefono: source.telefono,
+      email: source.email,
+      servicio: source.servicio,
+      consentimiento: source.consentimiento,
+    });
+    var extra = meta || {};
+    var attribution = normalizeAttribution(extra.utm);
+    var text = JSON.stringify([
+      data.nombre,
+      phoneDigits(data.telefono),
+      data.email,
+      data.servicio,
+      data.consentimiento,
+      String(extra.consentVersion || "").trim(),
+      attribution.source || "",
+      attribution.medium || "",
+      attribution.campaign || "",
+      String(extra.website || "").slice(0, 200),
+    ]);
+
+    if (
+      !global.crypto ||
+      !global.crypto.subtle ||
+      typeof global.TextEncoder !== "function"
+    ) {
+      var error = new Error("No está disponible el cálculo seguro de la solicitud.");
+      error.code = "IDEMPOTENCY_UNAVAILABLE";
+      throw error;
     }
-    return "v1-" + (hash >>> 0).toString(16);
+
+    var digest;
+    try {
+      digest = await global.crypto.subtle.digest(
+        "SHA-256",
+        new global.TextEncoder().encode(text),
+      );
+    } catch {
+      var digestError = new Error("No se pudo calcular la huella segura de la solicitud.");
+      digestError.code = "IDEMPOTENCY_UNAVAILABLE";
+      throw digestError;
+    }
+    return (
+      "sha256-" +
+      Array.from(new Uint8Array(digest), function (byte) {
+        return byte.toString(16).padStart(2, "0");
+      }).join("")
+    );
   }
 
   function makeIdempotencyKey() {
@@ -167,13 +218,7 @@
   function buildPayload(values, meta) {
     var data = sanitize(values);
     var extra = meta || {};
-    var utm = extra.utm || {};
-    var attribution =
-      String(utm.source || "").trim().toLowerCase() === "google" &&
-      String(utm.medium || "").trim().toLowerCase() === "cpc" &&
-      String(utm.campaign || "").trim().toLowerCase() === "search"
-        ? { source: "google", medium: "cpc", campaign: "search" }
-        : {};
+    var attribution = normalizeAttribution(extra.utm);
     // El mensaje libre NO se envía al registro: solo viaja a WhatsApp después
     // de confirmar la fila. Así se evita almacenar detalles del caso.
     return {

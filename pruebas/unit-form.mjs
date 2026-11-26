@@ -4,7 +4,15 @@ import vm from "node:vm";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-const sandbox = { console, crypto: globalThis.crypto, URL, URLSearchParams, Date, Math };
+const sandbox = {
+  console,
+  crypto: globalThis.crypto,
+  TextEncoder,
+  URL,
+  URLSearchParams,
+  Date,
+  Math,
+};
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(readFileSync("js/form-core.js", "utf8"), sandbox);
@@ -93,12 +101,44 @@ test("elimina caracteres de control", () => {
   assert.equal(data.mensaje, "Hola mundo");
 });
 
-test("firma estable e idempotencia", () => {
-  const a = core.signature(base);
-  const b = core.signature({ ...base, nombre: "Ana María", email: "ana@example.com" });
+test("huella SHA-256 identifica los datos enviados y excluye el mensaje libre", async () => {
+  const meta = {
+    consentVersion: "v1",
+    utm: { source: "google", medium: "cpc", campaign: "search" },
+  };
+  const a = await core.signature(base, meta);
+  const b = await core.signature(
+    { ...base, nombre: "Ana María", email: "ana@example.com" },
+    meta,
+  );
   assert.equal(a, b);
-  assert.equal(a, core.signature({ ...base, mensaje: "Otro mensaje" }));
-  assert.notEqual(a, core.signature({ ...base, telefono: "3001112233" }));
+  assert.equal(a, await core.signature({ ...base, mensaje: "Otro mensaje" }, meta));
+  assert.notEqual(a, await core.signature({ ...base, telefono: "3001112233" }, meta));
+  assert.notEqual(a, await core.signature({ ...base, servicio: "Civil" }, meta));
+  assert.notEqual(a, await core.signature(base, { ...meta, consentVersion: "v2" }));
+  assert.notEqual(a, await core.signature(base, { ...meta, utm: {} }));
+  assert.match(a, /^sha256-[a-f0-9]{64}$/);
+  assert.ok(!a.includes("Ana") && !a.includes("2025550100") && !a.includes("asesoría"));
+});
+
+test("falla cerrado si Web Crypto no está disponible", async () => {
+  const isolated = {
+    console,
+    crypto: {},
+    TextEncoder,
+    URL,
+    URLSearchParams,
+    Date,
+    Math,
+  };
+  isolated.window = isolated;
+  vm.createContext(isolated);
+  vm.runInContext(readFileSync("js/form-core.js", "utf8"), isolated);
+
+  await assert.rejects(
+    isolated.NMCFormCore.signature(base),
+    (error) => error.code === "IDEMPOTENCY_UNAVAILABLE",
+  );
 });
 
 test("clave de idempotencia única", () => {
