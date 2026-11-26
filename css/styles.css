@@ -3965,9 +3965,9 @@ body > footer {
 
 @media (max-width: 640px) {
   .hero-right picture {
-    width: min(94%, 400px);
+    width: 100%;
     aspect-ratio: 4 / 5;
-    margin: 24px auto 0;
+    margin: 0;
   }
 
   .hero-right img {
