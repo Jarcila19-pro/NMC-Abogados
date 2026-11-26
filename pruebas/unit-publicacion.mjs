@@ -258,20 +258,44 @@ test("producción sin endpoint no crea artefacto y perfiles arbitrarios fallan",
   }
 });
 
-test("PR usa perfil seguro y solo workflow_dispatch confirmado puede producir/publicar", () => {
+test("publicar manualmente safe genera un artefacto con las integraciones apagadas", async () => {
+  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "nmc-safe-profile-"));
+  const output = path.join(temporaryDirectory, "site");
+  try {
+    await buildPublicSite(output, { profile: "safe" });
+    const config = await readFile(path.join(output, "js", "config.js"), "utf8");
+    assert.equal(validateConfigProfile(config, "safe"), true);
+    assert.match(config, /registryEndpoint:\s*""/);
+    assert.match(config, /allowLocalRegistry:\s*false/);
+    assert.match(config, /consentApproved:\s*false/);
+    assert.match(config, /consentVersion:\s*""/);
+    assert.deepEqual(await verifyPublicSite(output, "safe"), [...PUBLIC_FILES].sort());
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+});
+
+test("PR valida safe y la publicación manual elige safe o production con confirmación", () => {
   assert.match(WORKFLOW, /pull_request:\s+branches:\s+- main/);
   assert.match(
     WORKFLOW,
-    /name: Build and verify safe profile\s+if: github\.event_name == 'pull_request'\s+run: node scripts\/build-public-site\.mjs --profile safe/,
+    /confirm_publication:\s+description: Confirmar publicación del sitio público en main\s+required: true\s+type: boolean\s+default: false/,
   );
   assert.match(
     WORKFLOW,
-    /name: Build and verify production profile\s+if: >-\s+github\.event_name == 'workflow_dispatch' &&\s+github\.ref == 'refs\/heads\/main' &&\s+inputs\.confirm_publication\s+env:\s+# Set this repository variable only after production deployment; use its \/exec URL, never QA\.\s+NMC_REGISTRY_ENDPOINT: \$\{\{ vars\.NMC_PRODUCTION_REGISTRY_ENDPOINT \}\}\s+run: node scripts\/build-public-site\.mjs --profile production/,
+    /profile:\s+description: Perfil que se compilará y publicará\s+required: true\s+type: choice\s+options:\s+- safe\s+- production\s+default: safe/,
+  );
+  assert.match(
+    WORKFLOW,
+    /name: Build and verify safe profile\s+if: >-\s+github\.event_name == 'pull_request' \|\|\s+\(github\.event_name == 'workflow_dispatch' &&\s+github\.ref == 'refs\/heads\/main' &&\s+inputs\.confirm_publication &&\s+inputs\.profile == 'safe'\)\s+run: node scripts\/build-public-site\.mjs --profile safe/,
+  );
+  assert.match(
+    WORKFLOW,
+    /name: Build and verify production profile\s+if: >-\s+github\.event_name == 'workflow_dispatch' &&\s+github\.ref == 'refs\/heads\/main' &&\s+inputs\.confirm_publication &&\s+inputs\.profile == 'production'\s+env:\s+# Set this repository variable only after production deployment; use its \/exec URL, never QA\.\s+NMC_REGISTRY_ENDPOINT: \$\{\{ vars\.NMC_PRODUCTION_REGISTRY_ENDPOINT \}\}\s+run: node scripts\/build-public-site\.mjs --profile production/,
   );
   assert.match(WORKFLOW, /Upload public artifact\s+if: github\.event_name != 'pull_request'/);
   assert.match(
     WORKFLOW,
     /deploy:\s+if:\s+>-\s+github\.event_name == 'workflow_dispatch' &&\s+github\.ref == 'refs\/heads\/main' &&\s+inputs\.confirm_publication/,
   );
-  assert.doesNotMatch(WORKFLOW, /NMC_BUILD_PROFILE|inputs\.profile/);
 });

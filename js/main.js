@@ -550,16 +550,18 @@ if (contactForm) {
         return;
       }
 
-      if (!config.consentApproved || !config.consentVersion) {
+      if (
+        !config.consentApproved ||
+        !config.consentVersion ||
+        !registry ||
+        !registry.isConfigured()
+      ) {
         setStatus(
-          "El consentimiento y el registro siguen pendientes de aprobación. No se envió ni registró ningún dato.",
-        );
-        return;
-      }
-
-      if (!registry || !registry.isConfigured()) {
-        setStatus(
-          "El registro de consultas no está disponible en este momento. No se envió ningún dato. Inténtalo más tarde o escríbenos por WhatsApp.",
+          "El formulario todavía no está disponible. No se enviarán los datos que ingresaste. Puedes contactarnos directamente por WhatsApp.",
+          {
+            url: core.buildWhatsAppUrl(config.whatsappNumber),
+            label: "Escribir por WhatsApp",
+          },
         );
         return;
       }
