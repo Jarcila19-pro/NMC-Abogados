@@ -548,6 +548,8 @@ if (contactForm) {
     event.preventDefault();
     if (submitting) return;
     submitting = true;
+    let recoveryPayload = null;
+    let recoveryKey = null;
 
     formStatus.replaceChildren();
     clearErrors();
@@ -607,6 +609,8 @@ if (contactForm) {
         ...requestMeta,
         key: idempotencyKey,
       });
+      recoveryPayload = payload;
+      recoveryKey = idempotencyKey;
 
       const result = await registry.submit(payload);
       const whatsappUrl = core.buildWhatsAppUrl(config.whatsappNumber);
@@ -627,17 +631,46 @@ if (contactForm) {
         { url: whatsappUrl, label: "Continuar por WhatsApp" },
       );
     } catch (error) {
-      if (
+      const definitiveRejection =
         error &&
         error.outcome === "rejected" &&
-        ["BAD_REQUEST", "DISABLED", "VALIDATION", "BUSY", "RATE_LIMITED"].includes(error.code)
-      ) {
+        ["BAD_REQUEST", "DISABLED", "VALIDATION", "BUSY", "RATE_LIMITED"].includes(error.code);
+      if (definitiveRejection) {
         clearPendingKey();
+        if (window.console && console.warn) {
+          console.warn("[NMC] Registro no confirmado:", error && error.code);
+        }
+        setStatus(errorMessage(error));
+      } else if (
+        error &&
+        error.outcome === "uncertain" &&
+        recoveryPayload &&
+        recoveryKey &&
+        !["PENDING_REQUEST", "IDEMPOTENCY_UNAVAILABLE", "NOT_CONFIGURED", "INSECURE_ENDPOINT", "INVALID_REQUEST"].includes(error.code)
+      ) {
+        setStatus("Verificando el registro antes de confirmar…");
+        try {
+          const recoveryResult = await registry.submit(recoveryPayload);
+          const whatsappUrl = core.buildWhatsAppUrl(config.whatsappNumber);
+          clearPendingKey();
+          setStatus(
+            `Solicitud registrada. Referencia ${recoveryResult.id}. Puedes continuar por WhatsApp cuando estés listo:`,
+            { url: whatsappUrl, label: "Continuar por WhatsApp" },
+          );
+        } catch (recoveryError) {
+          if (window.console && console.warn) {
+            console.warn("[NMC] Recuperación no confirmada:", recoveryError && recoveryError.code);
+          }
+          setStatus(
+            "No pudimos verificar el registro. Conservamos los datos para verificar el envío; no confirmamos el registro todavía.",
+          );
+        }
+      } else {
+        if (window.console && console.warn) {
+          console.warn("[NMC] Registro no confirmado:", error && error.code);
+        }
+        setStatus(errorMessage(error));
       }
-      if (window.console && console.warn) {
-        console.warn("[NMC] Registro no confirmado:", error && error.code);
-      }
-      setStatus(errorMessage(error));
     } finally {
       submitting = false;
       submitButton.disabled = false;
