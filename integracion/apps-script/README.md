@@ -4,13 +4,21 @@
 
 ## Estado comprobado
 
-- El spreadsheet real `NMC - Registro de consultas` y el proyecto Apps Script vinculado existen. La pestaña real `Registro de consultas` aún conserva el esquema anterior de 9 encabezados; este backend exige el esquema objetivo de 12 y no se ha conectado.
-- El proyecto Apps Script vinculado contiene únicamente `crearEstructuraNMC()`; no contiene este backend y no tiene implementaciones activas ni archivadas.
-- `registryEndpoint` y `consentVersion` están vacíos; `consentApproved`, `analytics.enabled` y `allowLocalRegistry` están en `false`.
-- No se ha desplegado este backend como Web App ni validado CORS/redirect contra Google.
-- El consentimiento y la política son borradores pendientes de aprobación de Natalia. Finalidad, conservación y eliminación deben aprobarse antes de captar consultas.
+- El sitio publicado en GitHub Pages corresponde a `main` y usa un `registryEndpoint` `/exec` real generado por el build de producción; el endpoint no se documenta aquí.
+- El frontend exige `consentVersion` `NMC-CONSENT-1.0` y `consentApproved: true` en producción. La configuración local segura (`js/config.js`) mantiene ambas compuertas cerradas.
+- El backend exige 12 encabezados exactos. Existe evidencia histórica de una recepción real con 12 columnas, pero en esta intervención no se verificaron en vivo la hoja, las Script Properties ni el código desplegado.
+- No se verificó si el Apps Script desplegado coincide con `integracion/apps-script/Code.gs`; el repositorio puede estar por detrás o por delante de la versión desplegada.
+- GA4, Google Ads y la atribución UTM permanecen desactivados en el build de producción.
 
-Esta guía define un procedimiento; no es evidencia de una integración real ni una aprobación legal.
+Esta guía documenta la arquitectura y la operación; no sustituye una verificación directa de Google ni una aprobación legal.
+
+### Diferencia entre GitHub y Apps Script
+
+- GitHub Pages publica el frontend del allowlist desde `main` mediante Actions.
+- Apps Script ejecuta el backend en la cuenta Google; su versión desplegada es independiente del repositorio.
+- Cambiar `Code.gs` en Git no actualiza el Web App; requiere redesplegar Apps Script.
+- Cambiar el frontend en GitHub no cambia la hoja ni el backend.
+- No afirmar que ambos están sincronizados sin verificar el deployment y las Script Properties.
 
 ## Arquitectura y contrato
 
@@ -60,7 +68,7 @@ Estados propuestos para validación de datos de la hoja:
 
 `Nueva` · `Pendiente de contacto` · `Contactada` · `Cita agendada` · `Cita atendida` · `Cerrada` · `No contactada`.
 
-El código inicia en `Nueva`; los estados posteriores y la asignación de responsable son gestión manual. Mantener encabezados, orden y nombres exactos; cualquier columna faltante, adicional o desordenada hace que el servidor falle cerrado. No insertar columnas dentro del esquema ni usar la hoja como expediente jurídico. La pestaña real aún no tiene este esquema; no conectar ni ejecutar el backend contra ella hasta que el cambio de esquema haya sido autorizado y verificado.
+El código inicia en `Nueva`; los estados posteriores y la asignación de responsable son gestión manual. Mantener encabezados, orden y nombres exactos; cualquier columna faltante, adicional o desordenada hace que el servidor falle cerrado. No insertar columnas dentro del esquema ni usar la hoja como expediente jurídico. El esquema de 12 columnas es el que exige el código; hay evidencia histórica de una recepción real con 12 columnas, pero no se revalidó en vivo en esta intervención. Antes de operar, verificar encabezados, orden y permisos en la hoja real.
 
 ### Operación diaria
 
@@ -87,22 +95,24 @@ Crear estas **Script Properties** desde `Configuración del proyecto → Propied
 
 No añadir credenciales ni secretos al código Apps Script. `SPREADSHEET_ID` se guarda solo como Script Property.
 
-### En el sitio (configuración local)
+### En el sitio (configuración local y build de producción)
 
-`js/config.js`:
+`js/config.js` (configuración segura por defecto):
 
-- `registryEndpoint`: URL `/exec`; vacío mantiene el registro fuera de servicio.
+- `registryEndpoint`: vacío mantiene el registro fuera de servicio.
 - `registryTimeoutMs`: límite total del envío y lectura.
 - `allowLocalRegistry`: debe permanecer `false`; solo el harness local lo habilita para mocks en `127.0.0.1`.
-- `consentApproved` y `consentVersion`: no cambiar hasta que Natalia apruebe texto, finalidad, política y versión.
-- `attribution.enabled`: permanece en `false`; no almacenar UTM sin aprobación comercial y de privacidad.
-- `analytics.enabled`, `ga4MeasurementId` y `adsConversionSendTo`: no habilitar sin ID real, autorización y aprobación de privacidad.
+- `consentApproved: false` y `consentVersion: ""`: el formulario no registra ni envía datos.
+- `attribution.enabled`: `false`.
+- `analytics.enabled`, `analytics.consentGranted`, `ga4MeasurementId` y `adsConversionSendTo`: desactivados o vacíos.
+
+El build `production` (`scripts/build-public-site.mjs`) exige `NMC_REGISTRY_ENDPOINT` con la URL `/exec`, `consentApproved: true`, `consentVersion: "NMC-CONSENT-1.0"`, `allowLocalRegistry: false`, atribución y analítica apagadas e IDs vacíos. La URL se suministra por la variable de repositorio `NMC_PRODUCTION_REGISTRY_ENDPOINT`; no se guarda en el repositorio.
 
 La URL `/exec` no es una credencial; es un endpoint público. No ofrece autenticación de origen: cualquiera que la conozca puede invocarlo, sujeto a las validaciones y cuotas. No colocar en ella claves de acceso ni parámetros secretos.
 
 ## Procedimiento de despliegue en dos entornos
 
-Todas las acciones de esta sección son futuras y requieren autorización y acceso de la cuenta NMC. No se han ejecutado.
+El sitio de GitHub Pages ya está publicado. El procedimiento siguiente describe cómo preparar o verificar un entorno de Apps Script; no implica que el backend desplegado coincida con este repositorio. Cualquier acción sobre Google requiere autorización y acceso de la cuenta NMC.
 
 ### A. Preparar entorno de prueba aislado
 
@@ -119,12 +129,12 @@ Todas las acciones de esta sección son futuras y requieren autorización y acce
 
 ### B. Crear la instancia de producción (no activar aún)
 
-1. Solo tras aprobación de Natalia, autorizar el uso de la hoja privada en la cuenta NMC y aplicar el esquema objetivo de 12 columnas mediante un procedimiento separado. La hoja actual de 9 columnas no coincide y no debe usarse con este backend hasta adaptarla.
+1. Solo tras aprobación de Natalia, autorizar el uso de la hoja privada en la cuenta NMC y aplicar el esquema objetivo de 12 columnas mediante un procedimiento separado. Si la hoja no coincide, no debe usarse con este backend hasta adaptarla y verificarla.
 2. Crear un proyecto Apps Script de producción separado, pegar el código validado y asignar `SPREADSHEET_ID` de producción como Script Property.
 3. Dejar `REGISTRY_ENABLED=false` hasta el go-live autorizado. No usar registros de clientes como prueba.
 4. Ejecutar `setupSheet()` para comprobar los encabezados/permisos. Desplegar como Web App que ejecuta como NMC. El acceso anónimo es una decisión explícita de riesgo; no ofrecer la hoja, solo el endpoint.
 5. Copiar la nueva URL `/exec` localmente. Registrar quién la recibió y dónde quedó guardada, nunca en el código público ni en este archivo.
-6. La configuración del sitio no se activa en esta misión. El cambio futuro a `registryEndpoint`, `consentApproved` y `consentVersion` requiere aprobación y un despliegue independiente del sitio.
+6. La configuración del sitio ya está activa en producción con `NMC-CONSENT-1.0`; cualquier cambio de endpoint o consentimiento requiere aprobación y un despliegue independiente del sitio.
 7. Activar `CONSENT_APPROVED` y `REGISTRY_ENABLED` solo en la ventana de go-live aprobada, con responsable monitorizando Apps Script y la hoja. GA4 es una autorización/configuración separada.
 
 ### Ejemplo de prueba manual (solo entorno de prueba)
@@ -301,12 +311,12 @@ Estos casos aún no se ejecutaron contra Google. Usar proyecto/hoja de prueba, n
 
 La eliminación de filas reales debe seguir el plazo y procedimiento que Natalia apruebe; esta guía no fija uno.
 
-## Acciones pendientes antes de producción
+## Verificaciones pendientes y mantenimiento
 
-1. Natalia resuelve y documenta aprobaciones de consentimiento, finalidad, campos, conservación/eliminación y responsables.
-2. NMC autoriza cuenta, custodio, operadores y permisos; confirma si acepta acceso público anónimo al Web App.
-3. Juan López Studio ejecuta y evidencia el entorno aislado de prueba y toda la matriz de QA, en especial CORS/redirect desde navegador.
-4. Resolver y documentar límites de abuso/cuotas con NMC; el rate limit actual es best-effort.
-5. NMC crea hoja/proyecto de producción; registrar quién tiene acceso; mantener ambas compuertas desactivadas hasta el go-live autorizado.
-6. Aprobación de lanzamiento por Natalia; configurar endpoint y consentimiento, desplegar el sitio mediante proceso autorizado y verificar monitoreo.
-7. GA4 queda como decisión separada; no habilitar sin consentimiento/privacidad e ID real.
+1. Verificar en vivo el código desplegado, las Script Properties y el esquema de 12 columnas; no asumir que coinciden con el repositorio.
+2. Confirmar custodio, operadores y permisos de la hoja y del proyecto Apps Script.
+3. Revisar CORS/redirect y cuotas con una prueba controlada antes de un cambio de backend.
+4. Documentar límites de abuso/cuotas; el rate limit actual es best-effort.
+5. Mantener GA4, Google Ads y la atribución apagados hasta una aprobación y un despliegue separados.
+6. Actualizar privacidad y consentimiento si se habilita analítica o atribución.
+7. Registrar quién recibió la URL `/exec`; no publicarla ni incluirla en el repositorio.

@@ -15,7 +15,14 @@ Web **estática** (sin CMS ni frameworks): HTML + CSS + JavaScript puro.
 | `privacidad.html` | Política de tratamiento de datos personales (Ley 1581 de 2012) |
 | `404.html` | Página de error (noindex) |
 | `css/styles.css` | Estilos, colores de marca y diseño responsive (breakpoints 1024px / 600px) |
-| `js/main.js` | Menú móvil accesible, scroll reveal, partículas, tarjetas de servicios, widget de WhatsApp y formulario |
+| `js/main.js` | Menú móvil accesible, scroll reveal, partículas, tarjetas de servicios, widget de WhatsApp y flujo del formulario |
+| `js/config.js` | Configuración segura por defecto: endpoint, consentimiento, atribución y analítica desactivados |
+| `js/form-core.js` | Saneamiento, validación, firma de reintento y construcción del payload |
+| `js/registry.js` | Cliente del Web App de Apps Script: timeout, lectura y validación de la respuesta |
+| `js/analytics.js` | Eventos preparados; GA4 y Ads permanecen apagados |
+| `integracion/apps-script/Code.gs` | Backend de Apps Script: validación, idempotencia, bloqueo y escritura en Sheets |
+| `scripts/build-public-site.mjs` | Constructor del artefacto público con allowlist y perfiles `safe`/`production` |
+| `.github/workflows/pages.yml` | Pruebas unitarias, build y despliegue manual a GitHub Pages |
 | `img/` | Logo, fotografías y versiones WebP optimizadas; favicons dedicados |
 | `pruebas/` | Pruebas locales sin dependencias (Edge headless vía CDP) |
 | `sitemap.xml` | Sitemap para buscadores |
@@ -25,25 +32,27 @@ Web **estática** (sin CMS ni frameworks): HTML + CSS + JavaScript puro.
 
 ## Despliegue
 
-El sitio se publica con **GitHub Pages**:
+La publicación usa **GitHub Actions + GitHub Pages**, no un despliegue automático por `push`:
 
-1. Hacer `git push` a la rama `main`.
-2. GitHub Pages reconstruye y publica automáticamente (1–3 minutos).
-3. Verificar en: https://nmcabogada.com
+1. Un **Pull Request** hacia `main` ejecuta `node --test pruebas/unit-*.mjs` y compila el perfil `safe`; no publica.
+2. La publicación se lanza manualmente con `workflow_dispatch` sobre `main`, `confirm_publication=true` y `profile=production`.
+3. El workflow construye solo los archivos del allowlist (`scripts/build-public-site.mjs`), genera `js/config.js` de producción y sube el artefacto a Pages.
+4. La URL `/exec` de Apps Script se toma de la variable de repositorio `NMC_PRODUCTION_REGISTRY_ENDPOINT`; no se guarda en el código.
 
-> Los cambios hechos solo en una carpeta local **no** aparecen en la web hasta que se suben al repositorio.
+> Un `push` a `main` por sí solo no publica. El artefacto excluye documentación interna, pruebas, scripts e `integracion/`.
 
 ## Publicación segura
 
-- La rama `main` **no tiene protección**: cualquier `push` se publica en el sitio en 1–3 minutos.
-- Para cambios de terceros se recomienda trabajar en una rama y abrir un **Pull Request** para revisión antes de fusionar a `main`.
+- La protección de la rama `main` **no se pudo verificar** desde este entorno; no se afirma que exista ni que falte.
+- Todo cambio debe pasar por rama y **Pull Request**; el PR valida unit tests y build `safe`.
+- El despliegue de producción exige `workflow_dispatch` manual, `confirm_publication=true` y perfil `production`.
 - **No borrar** `CNAME` (rompe el dominio personalizado) ni `5aea0e8bff5cc5254c391c8c588c730b.txt` (rompe la indexación vía IndexNow).
 
 ## Contenido de la página
 
 Secciones: Hero · Marquesina · Quiénes Somos · Propósito · **Servicios** (Derecho Civil, Derecho Comercial, Derecho de Familia, Laboral y Seguridad Social) · Formación Académica · Por qué elegirnos · Preguntas frecuentes · Contacto · Footer.
 
-El formulario valida los datos, prepara un mensaje codificado y abre **WhatsApp** (`wa.me/573146153979`). No envía ni almacena registros: la persona debe pulsar «Enviar» dentro de WhatsApp. Si el navegador bloquea la ventana, conserva los datos y ofrece un enlace manual. Incluye límites de longitud, un aviso `noscript` y un estado accesible con `aria-live`.
+El formulario valida nombre, teléfono, correo y área; exige el consentimiento **NMC-CONSENT-1.0**; envía un POST al Web App de Apps Script y solo ofrece **WhatsApp** (`wa.me/573146153979`) después de recibir un ID `NMC-...` válido. El backend registra la consulta en una hoja privada de Google Sheets con un esquema de 12 columnas (evidencia histórica; no revalidado en vivo en esta intervención) y devuelve el ID. No se envía ni se guarda el relato libre; solo se registra el área de consulta. Si el endpoint no está disponible, no se envía ningún dato. Los reintentos reutilizan una clave de idempotencia para evitar duplicados. Incluye límites de longitud, un aviso `noscript` y un estado accesible con `aria-live`.
 
 ## Rendimiento
 
@@ -55,16 +64,19 @@ El formulario valida los datos, prepara un mensaje codificado y abre **WhatsApp*
 ## Pruebas locales
 
 ```bash
+node --test pruebas/unit-*.mjs
+node scripts/build-public-site.mjs --profile safe --out <directorio-nuevo-fuera-del-repo>
 python -m http.server 8123 --bind 127.0.0.1
-node pruebas/smoke.mjs      # estructura, FAQ, widget, enlaces y responsive
-node pruebas/visual.mjs     # capturas por sección en escritorio y móvil
+node pruebas/smoke.mjs        # estructura, FAQ, widget, enlaces y responsive
+node pruebas/formulario.mjs   # registro simulado local; no accede a Google
+node pruebas/visual.mjs       # capturas por sección en escritorio y móvil
 ```
 
-Requieren Microsoft Edge instalado. No hay dependencias npm.
+Requieren Microsoft Edge instalado. No hay dependencias npm. El formulario E2E y el smoke necesitan el sitio servido en `http://127.0.0.1:8123/`.
 
 ## Privacidad
 
-La política de tratamiento y el consentimiento del formulario están **pendientes de revisión y aprobación** por la abogada. No debe publicarse captación con almacenamiento de consultas hasta que exista un texto aprobado.
+La política publicada y el consentimiento del formulario corresponden a **NMC-CONSENT-1.0** (vigente desde el 23 de noviembre de 2026). El formulario exige aceptación expresa antes de registrar. La analítica y la publicidad están apagadas; si se habilitan GA4 o Google Ads, la política debe actualizarse antes del despliegue.
 
 ## SEO
 
@@ -77,4 +89,30 @@ La política de tratamiento y el consentimiento del formulario están **pendient
 
 ## Analítica
 
-Actualmente **no** tiene Google Analytics instalado. Si se instala GA4, el snippet `gtag.js` va en el `<head>` de `index.html` con el ID de medición `G-XXXXXXXXXX`.
+Google Analytics, Google Ads y la atribución UTM están **desactivados** en la configuración y el build de producción los fuerza a `false`. Habilitarlos requiere un paquete separado: IDs reales, consentimiento de analítica, actualización de privacidad, pruebas y un despliegue autorizado. No basta con editar `js/config.js`.
+
+## Configuración
+
+`js/config.js` contiene la configuración segura por defecto: `registryEndpoint` vacío, `consentApproved: false`, `consentVersion` vacío, `attribution.enabled: false` y `analytics.enabled: false`.
+
+El perfil `production` del build exige:
+
+- `NMC_REGISTRY_ENDPOINT` con una URL `/exec` de Apps Script (sin query ni fragmento), suministrada por la variable de repositorio `NMC_PRODUCTION_REGISTRY_ENDPOINT`.
+- `consentVersion` exactamente `NMC-CONSENT-1.0`.
+- `allowLocalRegistry: false`, `attribution.enabled: false`, `analytics.enabled: false`, `analytics.consentGranted: false` e IDs de GA4/Ads vacíos.
+
+El endpoint `/exec` es público y no autentica el origen; cualquiera que lo conozca puede invocarlo, sujeto a validaciones, cuotas y al límite best-effort de 60 segundos. No es una credencial y no debe contener secretos.
+
+## Producción GitHub y Apps Script
+
+El sitio publicado en GitHub Pages y el Web App de Apps Script son dos artefactos distintos:
+
+- GitHub Pages publica el frontend del allowlist desde `main`.
+- Apps Script ejecuta el backend desplegado en la cuenta Google; su versión puede no coincidir con `integracion/apps-script/Code.gs` del repositorio.
+- En esta intervención no se verificó en vivo el código desplegado, las Script Properties ni el esquema actual de la hoja. La estructura de 12 columnas es la que exige el código y existe evidencia histórica de una recepción real con ese esquema, pero no se revalidó aquí.
+
+No se debe afirmar que el Apps Script desplegado es idéntico al archivo del repositorio sin una verificación directa.
+
+## Documentación interna
+
+`documentacion/` está ignorada por Git y no forma parte del artefacto público. `integracion/apps-script/README.md` es una guía interna y tampoco se publica.
