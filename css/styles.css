@@ -3928,6 +3928,7 @@ body > footer {
     width: 100%;
     height: auto;
     overflow: hidden;
+    margin-top: 76px;
   }
 
   .hero-right picture::after {
@@ -3976,7 +3977,7 @@ body > footer {
   .hero-right picture {
     width: 100%;
     aspect-ratio: 4 / 5;
-    margin: 0;
+    margin: 64px 0 0;
   }
 
   .hero-right img {
