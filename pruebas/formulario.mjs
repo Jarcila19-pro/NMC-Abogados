@@ -91,11 +91,12 @@ const server = createServer(async (req, res) => {
   if (req.url === "/redirect-commit") {
     const key = payload && payload.claveIdempotencia;
     if (redirectedRecords.has(key)) {
-      return json(200, {
+      setTimeout(() => json(200, {
         ok: true,
         id: redirectedRecords.get(key),
         duplicado: true,
-      });
+      }), 500);
+      return;
     }
     redirectedRecords.set(key, "NMC-00000000000000000000000000000008");
     res.writeHead(302, {
@@ -116,11 +117,12 @@ const server = createServer(async (req, res) => {
       retryRecords.set(payload.claveIdempotencia, "NMC-00000000000000000000000000000003");
       return json(200, { ok: false, code: "SERVER_ERROR" });
     }
-    return json(200, {
+    setTimeout(() => json(200, {
       ok: true,
       id: retryRecords.get(payload.claveIdempotencia),
       duplicado: true,
-    });
+    }), 500);
+    return;
   }
   if (req.url === "/retry-fail") {
     retryFailPayloads.push(payload);
@@ -393,13 +395,16 @@ try {
   await fill();
   const beforeRedirectCommit = postRequests;
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const redirectVerification = await waitForStatus("Verificando el registro antes de confirmar");
+  const pendingStorage = await browser.evaluate("sessionStorage.getItem('nmc_idem')");
   const retryRedirect = await waitForStatus("Solicitud registrada");
   const redirectRequests = receivedPayloads.filter((entry) => entry.url === "/redirect-commit");
-  check("El redirect ilegible activa una recuperación automática limitada", redirectRequests.length === 2 && redirectRequests[0].payload.claveIdempotencia === redirectRequests[1].payload.claveIdempotencia);
+  check("El redirect ilegible activa una recuperación automática limitada", redirectVerification.includes("Verificando") && redirectRequests.length === 2 && redirectRequests[0].payload.claveIdempotencia === redirectRequests[1].payload.claveIdempotencia);
   check("El navegador bloquea la lectura del redirect sin CORS", failedRequests.some((request) => request.includes(`${REDIRECT}/deny`) && request.includes("ERR_FAILED")));
-  const pendingStorage = '{"sig":"sha256-auto","key":"nmc-auto"}';
   check("La recuperación confirma el registro existente sin duplicar", retryRedirect.includes("NMC-00000000000000000000000000000008") && redirectedRecords.size === 1 && postRequests === beforeRedirectCommit + 2);
-  check("La huella y clave guardadas no contienen datos del contacto", !!pendingStorage && !/QA Ficticia|2025550100|qa@example\\.test/.test(pendingStorage) && JSON.parse(pendingStorage).sig.startsWith("sha256-"));
+  const redirectPending = pendingStorage ? JSON.parse(pendingStorage) : null;
+  check("El sessionStorage real conserva firma y clave sin datos personales durante recuperación", !!redirectPending && redirectPending.key === redirectRequests[0]?.payload.claveIdempotencia && redirectPending.sig.startsWith("sha256-") && !/QA Ficticia|2025550100|qa@example\.test|RELATO LEGAL PRIVADO/.test(pendingStorage));
+  check("La recuperación confirmada limpia la clave pendiente", (await browser.evaluate("sessionStorage.getItem('nmc_idem')")) === null);
 
   check("WhatsApp aparece tras el ID válido y no se abre automáticamente", !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
 
@@ -434,11 +439,14 @@ try {
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/retry`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const retryVerification = await waitForStatus("Verificando el registro antes de confirmar");
+  const retryPendingStorage = await browser.evaluate("sessionStorage.getItem('nmc_idem')");
   const retrySuccess = await waitForStatus("Solicitud registrada");
   const firstRetryKey = retryPayloads[0]?.claveIdempotencia;
-  const retryStorage = '{"sig":"sha256-auto","key":"nmc-auto"}';
-  check("La recuperación automática reutiliza la misma clave tras SERVER_ERROR", !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey && retryRecords.size === 1);
-  check("La huella guardada no contiene datos en claro ni relato", !!retryStorage && !/QA Ficticia|2025550100|qa@example\\.test|RELATO LEGAL PRIVADO/.test(retryStorage) && JSON.parse(retryStorage).sig.startsWith("sha256-"));
+  const retryPending = retryPendingStorage ? JSON.parse(retryPendingStorage) : null;
+  check("La recuperación automática reutiliza payload y clave tras SERVER_ERROR", retryVerification.includes("Verificando") && !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey && JSON.stringify(retryPayloads[0]) === JSON.stringify(retryPayloads[1]) && retryRecords.size === 1);
+  check("El sessionStorage real guarda firma y clave sin datos personales ni texto libre", !!retryPending && retryPending.key === firstRetryKey && retryPending.sig.startsWith("sha256-") && !/QA Ficticia|2025550100|qa@example\.test|RELATO LEGAL PRIVADO/.test(retryPendingStorage));
+  check("La clave se limpia después de confirmar la recuperación", (await browser.evaluate("sessionStorage.getItem('nmc_idem')")) === null);
   check("WhatsApp se ofrece solo después de resolver el registro", retrySuccess.includes("NMC-00000000000000000000000000000003") && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
 
   // 14.1. Si la recuperación también falla, no se muestra éxito falso.
@@ -450,8 +458,29 @@ try {
   check("La recuperación fallida no ofrece WhatsApp", !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
   check("La recuperación fallida usa exactamente un intento adicional", retryFailPayloads.length === 2 && retryFailPayloads[0].claveIdempotencia === retryFailPayloads[1].claveIdempotencia);
   check("La recuperación conserva el payload completo sin cambios", JSON.stringify(retryFailPayloads[0]) === JSON.stringify(retryFailPayloads[1]));
+  const failedRecoveryStorage = await browser.evaluate("sessionStorage.getItem('nmc_idem')");
+  const failedRecoveryKey = failedRecoveryStorage ? JSON.parse(failedRecoveryStorage) : null;
+  check("La recuperación fallida conserva su clave real en sessionStorage", !!failedRecoveryKey && failedRecoveryKey.key === retryFailPayloads[0]?.claveIdempotencia && failedRecoveryKey.sig.startsWith("sha256-"));
 
-  // 15. Navegación por teclado: el selector y el estado siguen accesibles.
+  // 15. Una consulta nueva confirmada utiliza una clave distinta.
+  await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/ok`, registryTimeoutMs: 2000 });
+  await fill();
+  const okStart = receivedPayloads.filter((entry) => entry.url === "/ok").length;
+  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const firstInquiry = await waitForStatus("Solicitud registrada");
+  const firstInquiryPayloads = receivedPayloads.filter((entry) => entry.url === "/ok").slice(okStart);
+  const firstInquiryKey = firstInquiryPayloads[0]?.payload.claveIdempotencia;
+  check("La primera consulta se confirma antes de enviar una nueva", firstInquiry.includes("NMC-00000000000000000000000000000001") && !!firstInquiryKey);
+
+  await fill({ email: "otra@example.test", servicio: "Familia" });
+  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
+  const secondInquiry = await waitForStatus("Solicitud registrada");
+  const inquiryPayloads = receivedPayloads.filter((entry) => entry.url === "/ok").slice(okStart);
+  const secondInquiryPayload = inquiryPayloads[1]?.payload;
+  check("La nueva consulta utiliza una clave distinta de la consulta confirmada", secondInquiry.includes("Solicitud registrada") && inquiryPayloads.length === 2 && !!secondInquiryPayload?.claveIdempotencia && secondInquiryPayload.claveIdempotencia !== firstInquiryKey);
+  check("La clave nueva se envía con los datos diferentes", secondInquiryPayload?.email === "otra@example.test" && secondInquiryPayload?.servicio === "Familia" && secondInquiryPayload.claveIdempotencia === inquiryPayloads[1]?.payload.claveIdempotencia);
+
+  // 16. Navegación por teclado: el selector y el estado siguen accesibles.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/ok`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector("#cf-servicio").focus()`);
