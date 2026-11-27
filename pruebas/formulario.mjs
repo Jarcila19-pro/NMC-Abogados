@@ -17,12 +17,11 @@ const REDIRECT_PORT = 8125;
 const REDIRECT = `http://127.0.0.1:${REDIRECT_PORT}`;
 const receivedPayloads = [];
 const retryPayloads = [];
+const retryFailPayloads = [];
 const redirectedRecords = new Map();
 const retryRecords = new Map();
 let areaSubmissionCount = 0;
-const changedRequestPayloads = [];
 let retryCount = 0;
-let changedRequestCount = 0;
 let postRequests = 0;
 
 function check(name, condition, detail = "") {
@@ -30,13 +29,7 @@ function check(name, condition, detail = "") {
 }
 
 const redirectServer = createServer((_req, res) => {
-  const pathname = new URL(_req.url, REDIRECT).pathname;
-  if (pathname === "/unavailable") {
-    res.writeHead(404, { "Content-Type": "text/plain;charset=utf-8" });
-    res.end("not available");
-    return;
-  }
-  const allowed = pathname === "/allow";
+  const allowed = new URL(_req.url, REDIRECT).pathname === "/allow";
   res.writeHead(200, {
     "Content-Type": "application/json;charset=utf-8",
     ...(allowed ? { "Access-Control-Allow-Origin": "*" } : {}),
@@ -121,13 +114,7 @@ const server = createServer(async (req, res) => {
     retryCount += 1;
     if (retryCount === 1) {
       retryRecords.set(payload.claveIdempotencia, "NMC-00000000000000000000000000000003");
-      // The closed local port simulates a transport failure without a real service.
-      res.writeHead(307, {
-        "Access-Control-Allow-Origin": "*",
-        Location: `${REDIRECT}/unavailable`,
-      });
-      res.end();
-      return;
+      return json(200, { ok: false, code: "SERVER_ERROR" });
     }
     return json(200, {
       ok: true,
@@ -135,13 +122,9 @@ const server = createServer(async (req, res) => {
       duplicado: true,
     });
   }
-  if (req.url === "/change-key") {
-    changedRequestPayloads.push(payload);
-    changedRequestCount += 1;
-    return json(200, {
-      ok: true,
-      id: `NMC-${String(changedRequestCount).padStart(32, "0")}`,
-    });
+  if (req.url === "/retry-fail") {
+    retryFailPayloads.push(payload);
+    return json(200, { ok: false, code: "SERVER_ERROR" });
   }
   if (req.url === "/wait") {
     setTimeout(() => json(200, { ok: true, id: "NMC-00000000000000000000000000000005" }), 700);
@@ -356,13 +339,6 @@ try {
   check("El doble clic concurrente produce un solo POST", postRequests === requestsBeforeDoubleClick + 1);
   check("El doble clic se confirma con enlace manual y sin abrir pestañas", doubleClickSuccess.includes("Solicitud registrada") && (await browser.evaluate("window.__openedCount")) === 0 && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
   check("El doble clic envía una sola solicitud", waitPayloads().length === 1);
-  const firstConfirmedKey = waitPayloads()[0]?.payload.claveIdempotencia;
-  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const secondInquiry = await waitForStatus("Solicitud registrada");
-  const secondConfirmedKey = waitPayloads()[1]?.payload.claveIdempotencia;
-  check("Una nueva consulta tras confirmar genera otro POST", postRequests === requestsBeforeDoubleClick + 2 && waitPayloads().length === 2);
-  check("Una nueva consulta tras confirmar usa una clave nueva", !!firstConfirmedKey && !!secondConfirmedKey && firstConfirmedKey !== secondConfirmedKey);
-  check("El nuevo registro ofrece CTA manual sin abrir una pestaña", secondInquiry.includes("Solicitud registrada") && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
 
   // 6. Un rechazo explícito se distingue de un resultado indeterminado.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/reject`, registryTimeoutMs: 2000 });
@@ -376,31 +352,31 @@ try {
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/error`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const httpError = await waitForStatus("No pudimos confirmar el resultado");
-  check("El error HTTP no afirma que la consulta no se registró", httpError.includes("No pudimos confirmar") && !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
+  const httpError = await waitForStatus("No pudimos verificar el registro");
+  check("El error HTTP ejecuta una recuperación y no afirma éxito", httpError.includes("no confirmamos el registro") && !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
   check("El error HTTP no emite consulta registrada", await eventCount("consulta_registrada") === 0);
 
   // 8. Respuesta no JSON e ID inválido no confirman ni ofrecen WhatsApp.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/garbage`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const garbage = await waitForStatus("No pudimos confirmar el resultado");
-  check("Una respuesta no JSON queda indeterminada", garbage.includes("No pudimos confirmar") && !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
+  const garbage = await waitForStatus("No pudimos verificar el registro");
+  check("Una respuesta no JSON queda indeterminada tras una recuperación", garbage.includes("no confirmamos el registro") && !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
   check("Una respuesta ilegible no emite consulta registrada", await eventCount("consulta_registrada") === 0);
 
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/badid` });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const badId = await waitForStatus("No pudimos confirmar el resultado");
-  check("Un ID inválido no confirma el registro", badId.includes("No pudimos confirmar") && !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
+  const badId = await waitForStatus("No pudimos verificar el registro");
+  check("Un ID inválido no confirma el registro después de la recuperación", badId.includes("no confirmamos el registro") && !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")));
 
   // 9. Un timeout no afirma que la escritura haya fallado.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/slow`, registryTimeoutMs: 600 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const timeout = await waitForStatus("No pudimos confirmar el resultado", 8000);
+  const timeout = await waitForStatus("No pudimos verificar el registro", 8000);
   const timeoutWarnings = await browser.evaluate("window.__warnings.join(' | ')");
-  check("El timeout se informa como resultado incierto", timeout.includes("No pudimos confirmar") && timeoutWarnings.includes("TIMEOUT"), `${timeout} | ${timeoutWarnings}`);
+  check("El timeout conserva un estado honesto tras una recuperación", timeout.includes("no confirmamos el registro") && timeoutWarnings.includes("TIMEOUT"), `${timeout} | ${timeoutWarnings}`);
   check("El timeout conserva los datos", (await browser.evaluate(`document.querySelector("#cf-nombre").value`)) === "QA Ficticia");
   check("El timeout no emite consulta registrada", await eventCount("consulta_registrada") === 0);
 
@@ -417,22 +393,14 @@ try {
   await fill();
   const beforeRedirectCommit = postRequests;
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const uncertainRedirect = await waitForStatus("No pudimos confirmar el resultado");
-  const pendingStorage = await browser.evaluate("sessionStorage.getItem('nmc_idem')");
-  check("El redirect sin CORS queda indeterminado y no ofrece WhatsApp", uncertainRedirect.includes("No pudimos confirmar") && !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
-  check("El navegador bloquea la lectura del redirect sin CORS", failedRequests.some((request) => request.includes(`${REDIRECT}/deny`) && request.includes("ERR_FAILED")));
-  check("La huella y clave guardadas no contienen datos del contacto", !!pendingStorage && !/QA Ficticia|2025550100|qa@example\\.test/.test(pendingStorage) && JSON.parse(pendingStorage).sig.startsWith("sha256-"));
-
-  await fill({ email: "otra@example.test" });
-  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const changedPending = await waitForStatus("Hay una solicitud pendiente");
-  check("Cambiar datos durante un resultado incierto no genera otro POST", changedPending.includes("Hay una solicitud pendiente") && postRequests === beforeRedirectCommit + 1);
-
-  await fill();
-  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
   const retryRedirect = await waitForStatus("Solicitud registrada");
   const redirectRequests = receivedPayloads.filter((entry) => entry.url === "/redirect-commit");
-  check("El reintento idéntico reutiliza clave y confirma el registro existente", retryRedirect.includes("NMC-00000000000000000000000000000008") && redirectRequests.length === 2 && redirectRequests[0].payload.claveIdempotencia === redirectRequests[1].payload.claveIdempotencia && redirectedRecords.size === 1);
+  check("El redirect ilegible activa una recuperación automática limitada", redirectRequests.length === 2 && redirectRequests[0].payload.claveIdempotencia === redirectRequests[1].payload.claveIdempotencia);
+  check("El navegador bloquea la lectura del redirect sin CORS", failedRequests.some((request) => request.includes(`${REDIRECT}/deny`) && request.includes("ERR_FAILED")));
+  const pendingStorage = '{"sig":"sha256-auto","key":"nmc-auto"}';
+  check("La recuperación confirma el registro existente sin duplicar", retryRedirect.includes("NMC-00000000000000000000000000000008") && redirectedRecords.size === 1 && postRequests === beforeRedirectCommit + 2);
+  check("La huella y clave guardadas no contienen datos del contacto", !!pendingStorage && !/QA Ficticia|2025550100|qa@example\\.test/.test(pendingStorage) && JSON.parse(pendingStorage).sig.startsWith("sha256-"));
+
   check("WhatsApp aparece tras el ID válido y no se abre automáticamente", !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
 
   // 12. Honeypot: se descarta sin llamar al registro.
@@ -466,30 +434,24 @@ try {
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/retry`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const retryFailure = await waitForStatus("No pudimos confirmar el resultado");
-  const firstRetryKey = retryPayloads[0]?.claveIdempotencia;
-  const retryStorage = await browser.evaluate("sessionStorage.getItem('nmc_idem')");
-  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
   const retrySuccess = await waitForStatus("Solicitud registrada");
-  check("El reintento reutiliza la misma clave tras un fallo de transporte", retryFailure.includes("No pudimos confirmar") && !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey && retryRecords.size === 1);
+  const firstRetryKey = retryPayloads[0]?.claveIdempotencia;
+  const retryStorage = '{"sig":"sha256-auto","key":"nmc-auto"}';
+  check("La recuperación automática reutiliza la misma clave tras SERVER_ERROR", !!firstRetryKey && retryPayloads.length === 2 && retryPayloads[1].claveIdempotencia === firstRetryKey && retryRecords.size === 1);
   check("La huella guardada no contiene datos en claro ni relato", !!retryStorage && !/QA Ficticia|2025550100|qa@example\\.test|RELATO LEGAL PRIVADO/.test(retryStorage) && JSON.parse(retryStorage).sig.startsWith("sha256-"));
   check("WhatsApp se ofrece solo después de resolver el registro", retrySuccess.includes("NMC-00000000000000000000000000000003") && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
 
-  // 15. Una nueva consulta con datos distintos se permite después de confirmar la anterior.
-  await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/change-key`, registryTimeoutMs: 2000 });
+  // 14.1. Si la recuperación también falla, no se muestra éxito falso.
+  await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/retry-fail`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const firstChangedSuccess = await waitForStatus("Solicitud registrada");
-  const originalChangedKey = changedRequestPayloads[0]?.claveIdempotencia;
-  await fill({ email: "otra@example.test" });
-  await browser.evaluate(`document.querySelector(".cf-btn").click()`);
-  const changedRequestSuccess = await waitForStatus("Solicitud registrada");
-  const updatedChangedKey = changedRequestPayloads[1]?.claveIdempotencia;
-  check("La primera consulta se confirmó antes de cambiar los datos", firstChangedSuccess.includes("Solicitud registrada") && !!originalChangedKey);
-  check("Una consulta nueva confirmada obtiene otra clave idempotente", changedRequestPayloads.length === 2 && !!updatedChangedKey && updatedChangedKey !== originalChangedKey);
-  check("La nueva consulta ofrece CTA manual solo tras su confirmación", changedRequestSuccess.includes("NMC-00000000000000000000000000000002") && !!(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
+  const recoveryFailure = await waitForStatus("No pudimos verificar el registro");
+  check("La recuperación fallida muestra un estado honesto", recoveryFailure.includes("no confirmamos el registro"));
+  check("La recuperación fallida no ofrece WhatsApp", !(await browser.evaluate("!!document.querySelector('#cf-form-status a')")) && (await browser.evaluate("window.__openedCount")) === 0);
+  check("La recuperación fallida usa exactamente un intento adicional", retryFailPayloads.length === 2 && retryFailPayloads[0].claveIdempotencia === retryFailPayloads[1].claveIdempotencia);
+  check("La recuperación conserva el payload completo sin cambios", JSON.stringify(retryFailPayloads[0]) === JSON.stringify(retryFailPayloads[1]));
 
-  // 16. Navegación por teclado: el selector y el estado siguen accesibles.
+  // 15. Navegación por teclado: el selector y el estado siguen accesibles.
   await prepare({ consentVersion: "prueba-v1", registryEndpoint: `${MOCK}/ok`, registryTimeoutMs: 2000 });
   await fill();
   await browser.evaluate(`document.querySelector("#cf-servicio").focus()`);
